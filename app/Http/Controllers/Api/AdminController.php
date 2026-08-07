@@ -1,0 +1,551 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\Post;
+use App\Models\Product;
+use App\Models\BoostOrder;
+use App\Models\Course;
+use App\Models\Report;
+use App\Models\Notification;
+use App\Models\Transaction;
+use App\Services\FullSMMService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+class AdminController extends Controller
+{
+    use \App\Traits\ApiResponseTrait;
+
+    protected $fullSMM;
+
+    public function __construct(FullSMMService $fullSMM)
+    {
+        $this->fullSMM = $fullSMM;
+    }
+
+    private function paginateQuery($query, Request $request, $perPage = 30)
+    {
+        $limit = $request->input('limit', $perPage);
+        $page = $request->input('page', 1);
+        $offset = ($page - 1) * $limit;
+
+        $total = (clone $query)->count();
+        $items = $query->skip($offset)->take($limit)->get();
+
+        return [
+            'items' => $items,
+            'has_more' => ($offset + $items->count()) < $total,
+            'total' => $total,
+            'page' => $page,
+        ];
+    }
+
+    public function activate(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->email !== config('admin.email')) {
+            return $this->errorResponse('Ce compte n\'est pas autorisé à accéder à l\'administration.', 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'code' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        if ($request->code !== config('admin.activation_code')) {
+            return $this->errorResponse('Code d\'activation incorrect.', 403);
+        }
+
+        $user->update(['is_admin_activated' => true, 'role' => 'admin']);
+
+        return $this->successResponse([
+            'message' => 'Accès administrateur activé avec succès.',
+            'is_admin_activated' => true,
+        ]);
+    }
+
+    public function dashboard()
+    {
+        return $this->successResponse([
+            'stats' => [
+                'users' => [
+                    'total' => User::count(),
+                    'new_today' => User::whereDate('created_at', today())->count(),
+                    'premium_requests' => User::where('premium_requested', true)->count(),
+                ],
+                'content' => [
+                    'posts' => Post::count(),
+                    'reported' => Post::where('is_reported', true)->count(),
+                ],
+                'marketplace' => [
+                    'products' => Product::count(),
+                    'pending_approval' => Product::where('is_approved', false)->count(),
+                ],
+                'boost' => [
+                    'orders' => BoostOrder::count(),
+                    'orders_pending' => BoostOrder::where('status', 'pending')->count(),
+                ],
+                'courses' => [
+                    'total' => Course::count(),
+                    'students' => Course::sum('students_count'),
+                ],
+                'financial' => [
+                    'today_revenue' => Transaction::whereDate('created_at', today())
+                        ->where('status', 'completed')
+                        ->whereIn('type', ['deposit', 'boost_payment', 'marketplace_payment', 'course_payment'])
+                        ->sum('amount'),
+                ],
+                'reports' => [
+                    'pending' => Report::where('status', 'pending')->count(),
+                    'resolved' => Report::where('status', 'resolved')->count(),
+                ],
+            ],
+        ]);
+    }
+
+    public function users(Request $request)
+    {
+        $query = User::query();
+
+        if ($request->filled('q')) {
+            $query->where('name', 'LIKE', "%{$request->q}%")
+                ->orWhere('email', 'LIKE', "%{$request->q}%");
+        }
+
+        if ($request->filled('status')) {
+            if ($request->status === 'blocked') $query->where('is_blocked', true);
+            if ($request->status === 'premium') $query->where('is_premium', true);
+            if ($request->status === 'verified') $query->where('is_verified', true);
+        }
+
+        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+        return $this->successResponse([
+            'users' => $result['items'],
+            'has_more' => $result['has_more'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+        ]);
+    }
+
+    public function userDetails($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        return $this->successResponse([
+            'user' => $user,
+            'posts_count' => $user->posts()->count(),
+            'orders_count' => $user->orders()->count(),
+            'transactions_count' => $user->transactions()->count(),
+        ]);
+    }
+
+    public function blockUser($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        $user->update(['is_blocked' => true]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'account_blocked',
+            'message' => 'Votre compte a été bloqué par l\'administration.',
+            'has_sound' => true,
+        ]);
+
+        return $this->successResponse(['message' => 'User blocked successfully.']);
+    }
+
+    public function unblockUser($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        $user->update(['is_blocked' => false]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'account_unblocked',
+            'message' => 'Votre compte a été débloqué.',
+            'has_sound' => true,
+        ]);
+
+        return $this->successResponse(['message' => 'User unblocked successfully.']);
+    }
+
+    public function deleteUser($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        $user->delete();
+
+        return $this->successResponse(['message' => 'User deleted successfully.']);
+    }
+
+    public function premiumRequests()
+    {
+        $users = User::where('premium_requested', true)
+            ->where('is_premium', false)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return $this->successResponse(['requests' => $users]);
+    }
+
+    public function approvePremium($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        $user->update(['is_premium' => true, 'premium_requested' => false]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'premium_approved',
+            'message' => 'Votre demande premium a été approuvée !',
+            'has_sound' => true,
+        ]);
+
+        return $this->successResponse(['message' => 'Premium approved successfully.']);
+    }
+
+    public function rejectPremium($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        $user->update(['premium_requested' => false]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'premium_rejected',
+            'message' => 'Votre demande premium a été refusée.',
+            'has_sound' => true,
+        ]);
+
+        return $this->successResponse(['message' => 'Premium request rejected.']);
+    }
+
+    public function posts(Request $request)
+    {
+        $query = Post::with('user');
+
+        if ($request->filled('reported')) {
+            $query->where('is_reported', true);
+        }
+
+        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+        return $this->successResponse([
+            'posts' => $result['items'],
+            'has_more' => $result['has_more'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+        ]);
+    }
+
+    public function deletePost($id)
+    {
+        $post = Post::find($id);
+
+        if (!$post) {
+            return $this->errorResponse('Post not found.', 404);
+        }
+
+        $post->delete();
+
+        return $this->successResponse(['message' => 'Post deleted successfully.']);
+    }
+
+    public function hidePost($id)
+    {
+        $post = Post::find($id);
+
+        if (!$post) {
+            return $this->errorResponse('Post not found.', 404);
+        }
+
+        $post->update(['is_published' => false]);
+
+        return $this->successResponse(['message' => 'Post hidden successfully.']);
+    }
+
+    public function marketplaceProducts(Request $request)
+    {
+        $query = Product::with('seller');
+
+        if ($request->filled('status')) {
+            if ($request->status === 'pending') $query->where('is_approved', false);
+            if ($request->status === 'approved') $query->where('is_approved', true);
+        }
+
+        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+        return $this->successResponse([
+            'products' => $result['items'],
+            'has_more' => $result['has_more'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+        ]);
+    }
+
+    public function approveProduct($id)
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            return $this->errorResponse('Product not found.', 404);
+        }
+
+        $product->update(['is_approved' => true]);
+
+        Notification::create([
+            'user_id' => $product->seller_id,
+            'type' => 'product_approved',
+            'message' => 'Votre produit "' . $product->name . '" a été approuvé.',
+            'data' => json_encode(['product_id' => $product->id]),
+            'has_sound' => true,
+        ]);
+
+        return $this->successResponse(['message' => 'Product approved successfully.']);
+    }
+
+    public function rejectProduct($id)
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            return $this->errorResponse('Product not found.', 404);
+        }
+
+        $product->update(['is_approved' => false, 'is_active' => false]);
+
+        Notification::create([
+            'user_id' => $product->seller_id,
+            'type' => 'product_rejected',
+            'message' => 'Votre produit "' . $product->name . '" a été refusé.',
+            'data' => json_encode(['product_id' => $product->id]),
+            'has_sound' => true,
+        ]);
+
+        return $this->successResponse(['message' => 'Product rejected successfully.']);
+    }
+
+    public function boostOrders(Request $request)
+    {
+        $query = BoostOrder::with('user');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+        return $this->successResponse([
+            'orders' => $result['items'],
+            'has_more' => $result['has_more'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+        ]);
+    }
+
+    public function fullsmmBalance()
+    {
+        $balance = $this->fullSMM->getBalance();
+
+        return $this->successResponse(['balance' => $balance]);
+    }
+
+    public function syncBoostServices()
+    {
+        $services = $this->fullSMM->getServices();
+
+        if (!$services) {
+            return $this->errorResponse('Failed to sync services from provider.', 502);
+        }
+
+        return $this->successResponse([
+            'message' => 'Services synced successfully.',
+            'count' => count($services),
+        ]);
+    }
+
+    public function courses(Request $request)
+    {
+        $query = Course::with('instructor');
+
+        if ($request->filled('status')) {
+            if ($request->status === 'published') $query->where('is_published', true);
+            if ($request->status === 'draft') $query->where('is_published', false);
+        }
+
+        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+        return $this->successResponse([
+            'courses' => $result['items'],
+            'has_more' => $result['has_more'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+        ]);
+    }
+
+    public function createCourse(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:5000',
+            'category' => 'nullable|string|max:100',
+            'level' => 'required|in:beginner,intermediate,advanced,expert',
+            'price' => 'required|numeric|min:0',
+            'is_free' => 'boolean',
+            'instructor_id' => 'nullable|integer|exists:users,id',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        $course = Course::create([
+            'instructor_id' => $request->input('instructor_id', auth()->id()),
+            'title' => $request->title,
+            'description' => $request->description,
+            'category' => $request->category,
+            'level' => $request->level,
+            'price' => $request->price,
+            'is_free' => $request->boolean('is_free', $request->price == 0),
+            'is_published' => false,
+        ]);
+
+        return $this->successResponse([
+            'message' => 'Course created successfully.',
+            'course' => $course,
+        ], 201);
+    }
+
+    public function updateCourse(Request $request, $id)
+    {
+        $course = Course::find($id);
+
+        if (!$course) {
+            return $this->errorResponse('Course not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|string|max:255',
+            'description' => 'nullable|string|max:5000',
+            'category' => 'nullable|string|max:100',
+            'level' => 'sometimes|in:beginner,intermediate,advanced,expert',
+            'price' => 'sometimes|numeric|min:0',
+            'is_free' => 'boolean',
+            'is_published' => 'boolean',
+            'featured' => 'boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        $course->update($request->only(['title', 'description', 'category', 'level', 'price', 'is_free', 'is_published', 'featured']));
+
+        return $this->successResponse([
+            'message' => 'Course updated successfully.',
+            'course' => $course->fresh(),
+        ]);
+    }
+
+    public function deleteCourse($id)
+    {
+        $course = Course::find($id);
+
+        if (!$course) {
+            return $this->errorResponse('Course not found.', 404);
+        }
+
+        $course->delete();
+
+        return $this->successResponse(['message' => 'Course deleted successfully.']);
+    }
+
+    public function reports(Request $request)
+    {
+        $query = Report::with(['reporter', 'reportedUser', 'post']);
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+        return $this->successResponse([
+            'reports' => $result['items'],
+            'has_more' => $result['has_more'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+        ]);
+    }
+
+    public function resolveReport(Request $request, $id)
+    {
+        $report = Report::find($id);
+
+        if (!$report) {
+            return $this->errorResponse('Report not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'admin_note' => 'nullable|string|max:500',
+            'action' => 'nullable|in:none,hide_post,block_user,delete_post',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        if ($request->action === 'hide_post' && $report->post) {
+            $report->post->update(['is_published' => false]);
+        }
+
+        if ($request->action === 'delete_post' && $report->post) {
+            $report->post->delete();
+        }
+
+        if ($request->action === 'block_user' && $report->reported_user_id) {
+            User::where('id', $report->reported_user_id)->update(['is_blocked' => true]);
+        }
+
+        $report->update([
+            'status' => 'resolved',
+            'admin_note' => $request->admin_note,
+        ]);
+
+        return $this->successResponse(['message' => 'Report resolved successfully.']);
+    }
+}
