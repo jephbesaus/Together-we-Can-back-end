@@ -9,7 +9,11 @@ function message(text, error = true) {
 }
 
 async function request(path, options = {}) {
-    const headers = { Accept: 'application/json', ...(options.body ? {'Content-Type': 'application/json'} : {}), ...(state.token ? {Authorization: `Bearer ${state.token}`} : {}) };
+    const headers = {
+        Accept: 'application/json',
+        ...(options.body ? {'Content-Type': options.form ? 'application/x-www-form-urlencoded' : 'application/json'} : {}),
+        ...(state.token ? {Authorization: `Bearer ${state.token}`} : {})
+    };
     const response = await fetch(`${API}${path}`, {...options, headers});
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || 'La requête a échoué.');
@@ -79,7 +83,11 @@ $('#loginForm').addEventListener('submit', async (event) => {
     message('');
     try {
         if (!state.token) {
-            const data = await request('/auth/login', {method:'POST', body: JSON.stringify({email:$('#email').value, password:$('#password').value})});
+            const data = await request('/auth/login', {
+                method:'POST',
+                form:true,
+                body: new URLSearchParams({email:$('#email').value, password:$('#password').value})
+            });
             state.token = data.token; state.user = data.user; localStorage.setItem('twc_admin_token', state.token);
         }
         try { await request('/admin/dashboard'); }
@@ -87,7 +95,7 @@ $('#loginForm').addEventListener('submit', async (event) => {
             if (!error.message.includes('non activé')) throw error;
             const code = $('#activationCode').value;
             if (!code) throw error;
-            await request('/admin/activate', {method:'POST', body: JSON.stringify({code})});
+            await request('/admin/activate', {method:'POST', form:true, body: new URLSearchParams({code})});
         }
         showApp();
     } catch (error) { message(error.message); localStorage.removeItem('twc_admin_token'); state.token = null; }
