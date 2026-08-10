@@ -70,7 +70,7 @@
         <img src="{{ asset('logo.png') }}" alt="Together We Can">
         <h1>Together We Can</h1>
         <p>La plateforme communautaire qui réunit réseau social, marketplace, formations, promotion sur les réseaux sociaux et portefeuille mobile money en une seule application.</p>
-        <a href="/download" class="btn">📱 Télécharger l'application</a>
+        <a href="https://www.mediafire.com/file/orkm67j1wqpib69/Together.apk/file" class="btn">📱 Télécharger l'application</a>
     </header>
 
     <section>
