@@ -30,7 +30,7 @@ class FCMService {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     const settings = InitializationSettings(android: android, iOS: ios);
-    await _localNotifications.initialize(settings);
+    await _localNotifications.initialize(settings: settings);
   }
 
   Future<void> _getToken() async {
@@ -68,10 +68,10 @@ class FCMService {
     const details = NotificationDetails(android: android, iOS: ios);
 
     await _localNotifications.show(
-      0,
-      message.notification?.title ?? 'Together We Can',
-      message.notification?.body ?? '',
-      details,
+      id: 0,
+      title: message.notification?.title ?? 'Together We Can',
+      body: message.notification?.body ?? '',
+      notificationDetails: details,
     );
   }
 

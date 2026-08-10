@@ -35,11 +35,11 @@ dependencies:
 
   # Image & Video
   image_picker: ^1.0.5
-  file_picker: ^11.0.3
+  file_picker: 10.0.0
   video_player: ^2.8.2
 
   # Notifications
-  flutter_local_notifications: ^15.1.1
+  flutter_local_notifications: ^22.3.0
 
 dev_dependencies:
   flutter_test:
