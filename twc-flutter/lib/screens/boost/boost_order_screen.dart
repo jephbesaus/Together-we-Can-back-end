@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
-import 'boost_home_screen.dart';
+import '../boost_home_screen.dart';
 
 class BoostOrderScreen extends StatefulWidget {
   final Map<String, dynamic> service;

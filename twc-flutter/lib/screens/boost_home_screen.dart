@@ -283,7 +283,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
       case 'telegram':
         return Icons.telegram;
       case 'whatsapp':
-        return Icons.whatsapp;
+        return Icons.chat_bubble;
       default:
         return Icons.share;
     }
