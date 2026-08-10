@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
 
 class FusionPayService
 {
@@ -11,6 +12,7 @@ class FusionPayService
     protected $apiKey;
     protected $callbackUrl;
     protected $currency;
+    protected $webhookSecret;
 
     public function __construct()
     {
@@ -18,6 +20,7 @@ class FusionPayService
         $this->apiKey = config('fusionpay.api_key');
         $this->callbackUrl = config('fusionpay.callback_url');
         $this->currency = config('fusionpay.currency', 'XOF');
+        $this->webhookSecret = config('fusionpay.webhook_secret');
     }
 
     private function request($endpoint, $data = [], $method = 'POST')
@@ -44,6 +47,37 @@ class FusionPayService
     public function getBalance() { return $this->request('balance', [], 'GET'); }
     public function getTransactions($limit = 50, $page = 1) { return $this->request('transactions', ['limit' => $limit, 'page' => $page], 'GET'); }
 
+    /**
+     * Vérifie que la requête webhook provient bien de FusionPay et non d'un tiers
+     * malveillant qui essaierait de simuler un paiement réussi pour se créditer
+     * gratuitement. Le principe : FusionPay doit signer chaque appel avec une clé
+     * secrète (partagée via leur dashboard), qu'on compare ici en HMAC-SHA256.
+     *
+     * ⚠️ IMPORTANT : le nom exact du header et l'algorithme dépendent de la doc
+     * FusionPay. Ce code utilise un schéma standard (header X-Fusionpay-Signature,
+     * HMAC-SHA256 du corps brut de la requête) — à ajuster une fois que FusionPay
+     * vous communique leur méthode exacte de signature.
+     */
+    public function verifySignature(Request $request): bool
+    {
+        if (empty($this->webhookSecret)) {
+            // Aucun secret configuré : on ne peut pas vérifier. On log un avertissement
+            // clair plutôt que d'accepter silencieusement n'importe quelle requête.
+            Log::warning('FusionPay webhook reçu sans FUSIONPAY_WEBHOOK_SECRET configuré — signature non vérifiée, requête acceptée par défaut.');
+            return true;
+        }
+
+        $signatureHeader = $request->header('X-Fusionpay-Signature');
+        if (!$signatureHeader) {
+            Log::warning('FusionPay webhook rejeté : en-tête de signature manquant.');
+            return false;
+        }
+
+        $expected = hash_hmac('sha256', $request->getContent(), $this->webhookSecret);
+
+        return hash_equals($expected, $signatureHeader);
+    }
+
     public function handleWebhook($payload)
     {
         Log::info('FusionPay Webhook Received', ['payload' => $payload]);
@@ -58,6 +92,16 @@ class FusionPayService
     {
         $transaction = \App\Models\Transaction::where('reference', $transactionId)->orWhere('id', $transactionId)->first();
         if (!$transaction) { Log::error('Transaction not found for webhook: ' . $transactionId); return; }
+
+        // Idempotence : si la transaction est déjà marquée "completed", on ne
+        // recrédite JAMAIS le solde une deuxième fois, même si FusionPay renvoie
+        // le webhook plusieurs fois (ce qui arrive en pratique, par sécurité de
+        // leur côté en cas de non-réponse de notre serveur).
+        if ($transaction->status === 'completed') {
+            Log::info('Webhook ignoré : transaction déjà complétée.', ['transaction_id' => $transactionId]);
+            return;
+        }
+
         $statusMap = ['pending' => 'pending', 'processing' => 'pending', 'completed' => 'completed', 'success' => 'completed', 'failed' => 'failed', 'cancelled' => 'failed', 'refunded' => 'refunded'];
         $newStatus = $statusMap[$status] ?? 'pending';
         $transaction->update(['status' => $newStatus, 'metadata' => array_merge($transaction->metadata ?? [], ['fusionpay' => $payload, 'updated_at' => now()->toISOString()]), 'completed_at' => in_array($newStatus, ['completed', 'failed']) ? now() : null]);

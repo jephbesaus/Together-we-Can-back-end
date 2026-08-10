@@ -37,7 +37,10 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-    // The application service providers and aliases are loaded automatically by the framework.
-    // The clean Laravel 11 default configuration no longer requires explicit provider or alias lists here.
+    'providers' => \Illuminate\Support\ServiceProvider::defaultProviders()->toArray(),
+
+    'aliases' => Facade::defaultAliases()->merge([
+        //
+    ])->toArray(),
 
 ];

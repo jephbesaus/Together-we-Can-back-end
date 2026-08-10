@@ -103,6 +103,27 @@ class TransactionController extends Controller
         return $this->successResponse($result);
     }
 
+    public function checkDepositStatus($transactionId)
+    {
+        $transaction = \App\Models\Transaction::forUser(auth()->id())->find($transactionId);
+
+        if (!$transaction) {
+            return $this->errorResponse('Transaction not found.', 404);
+        }
+
+        if ($transaction->status !== 'pending') {
+            return $this->successResponse(['status' => $transaction->status, 'transaction' => $transaction]);
+        }
+
+        $result = $this->paymentService->checkFusionPayStatus($transactionId);
+
+        if (!$result['success']) {
+            return $this->errorResponse($result['message'] ?? 'Vérification impossible pour le moment.', 400);
+        }
+
+        return $this->successResponse(['status' => $result['status'], 'transaction' => $result['transaction']]);
+    }
+
     public function withdraw(Request $request)
     {
         $validator = Validator::make($request->all(), [

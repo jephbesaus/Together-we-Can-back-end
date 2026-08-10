@@ -10,4 +10,9 @@ return [
 
     'callback_url' => env('FUSIONPAY_CALLBACK_URL', env('APP_URL') . '/api/webhooks/fusionpay'),
 
+    // Clé secrète fournie par FusionPay pour signer leurs appels webhook.
+    // Sans elle, n'importe qui pourrait appeler notre webhook et simuler
+    // un paiement réussi pour se créditer gratuitement.
+    'webhook_secret' => env('FUSIONPAY_WEBHOOK_SECRET'),
+
 ];

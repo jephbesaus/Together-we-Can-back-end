@@ -15,6 +15,11 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\AppReleaseController;
+use App\Http\Controllers\Api\AnnouncementController;
+use App\Http\Controllers\Api\CampaignController;
+use App\Http\Controllers\Api\WebhookController;
+
+Route::post('/webhooks/fusionpay', [WebhookController::class, 'fusionPay']);
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -113,6 +118,7 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
     Route::get('/transactions/summary', [TransactionController::class, 'summary']);
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
     Route::post('/transactions/deposit', [TransactionController::class, 'deposit']);
+    Route::get('/transactions/{id}/check-status', [TransactionController::class, 'checkDepositStatus']);
     Route::post('/transactions/withdraw', [TransactionController::class, 'withdraw']);
     Route::post('/transactions/transfer', [TransactionController::class, 'transfer']);
 
@@ -129,6 +135,15 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
     Route::post('/referrals/{id}/complete', [ReferralController::class, 'completeReferral']);
     Route::get('/referrals/share', [ReferralController::class, 'shareLink']);
     Route::get('/referrals/leaderboard', [ReferralController::class, 'leaderboard']);
+
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::get('/announcements/{id}', [AnnouncementController::class, 'show']);
+
+    Route::get('/campaigns/my-campaigns', [CampaignController::class, 'myCampaigns']);
+    Route::post('/campaigns', [CampaignController::class, 'store']);
+    Route::get('/campaigns/{id}', [CampaignController::class, 'show']);
+    Route::get('/campaigns/{id}/stats', [CampaignController::class, 'stats']);
+    Route::post('/campaigns/{id}/stop', [CampaignController::class, 'stop']);
 
     Route::post('/admin/activate', [AdminController::class, 'activate']);
 
@@ -157,5 +172,8 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
         Route::delete('/courses/{id}', [AdminController::class, 'deleteCourse']);
         Route::get('/reports', [AdminController::class, 'reports']);
         Route::post('/reports/{id}/resolve', [AdminController::class, 'resolveReport']);
+        Route::post('/announcements', [AnnouncementController::class, 'store']);
+        Route::put('/announcements/{id}', [AnnouncementController::class, 'update']);
+        Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy']);
     });
 });

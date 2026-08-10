@@ -14,6 +14,7 @@ return new class extends Migration
             $table->text('content');
             $table->string('image_url')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_pinned')->default(false);
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });

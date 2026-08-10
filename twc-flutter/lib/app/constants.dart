@@ -4,14 +4,9 @@ class AppConstants {
   static const String appName = 'Together We Can';
   static const String appVersion = '1.0.0';
 
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8083/api',
-  );
-  static const String wsBaseUrl = String.fromEnvironment(
-    'WS_BASE_URL',
-    defaultValue: 'ws://10.0.2.2:8080',
-  );
+  // Backend déployé sur Render
+  static const String apiBaseUrl = 'https://together-we-can-back-end-pqel.onrender.com/api';
+  static const String wsBaseUrl = 'ws://localhost:8080';
 
   static const Color primaryColor = Color(0xFF00A86B);
   static const Color primaryDark = Color(0xFF008C5A);

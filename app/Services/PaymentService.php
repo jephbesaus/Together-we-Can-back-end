@@ -53,6 +53,12 @@ class PaymentService
     {
         $transaction = Transaction::find($transactionId);
         if (!$transaction) return ['success' => false, 'message' => 'Transaction non trouvée.'];
+
+        // Idempotence : si déjà complétée, on ne recrédite jamais une deuxième fois.
+        if ($transaction->status === 'completed') {
+            return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
+        }
+
         $fusionpayId = $transaction->metadata['fusionpay']['transaction_id'] ?? null;
         if (!$fusionpayId) return ['success' => false, 'message' => 'ID FusionPay non trouvé.'];
         $result = $this->fusionPay->checkStatus($fusionpayId);

@@ -1,18 +1,39 @@
 services:
+  db:
+    image: postgres:17
+    container_name: twc-backend-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-together_db}
+      POSTGRES_USER: ${DB_USERNAME:-twc}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-twc_dev_2026}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-twc} -d ${DB_DATABASE:-together_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
+    image: twc-backend-app
     container_name: twc-backend
+    restart: unless-stopped
     ports:
       - "8083:80"
-    environment:
-      APP_ENV: production
-      APP_DEBUG: "false"
-      APP_URL: http://localhost:8083
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /tmp/twc.sqlite
-      LOG_CHANNEL: stderr
     volumes:
       - .:/var/www/html
-    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_CONNECTION: pgsql
+      COMPOSER_POLICY_ADVISORIES_BLOCK: "false"
+
+volumes:
+  pgdata:
