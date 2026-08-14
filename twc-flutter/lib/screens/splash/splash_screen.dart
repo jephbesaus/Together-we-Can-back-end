@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../app/constants.dart';
 import '../../app/routes.dart';
 import '../../core/services/auth_service.dart';
+import '../../widgets/app_loader.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,9 +20,11 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(milliseconds: 1800));
     final auth = Get.find<AuthService>();
     final isLoggedIn = await auth.isLoggedIn();
+
+    if (!mounted) return;
 
     if (isLoggedIn) {
       Get.offAllNamed(AppRoutes.home);
@@ -53,9 +56,24 @@ class _SplashScreenState extends State<SplashScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 40),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            const SizedBox(height: 44),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const AppLoader(
+                centered: false,
+                message: 'Connexion en cours...',
+              ),
             ),
           ],
         ),

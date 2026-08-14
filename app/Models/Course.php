@@ -30,6 +30,11 @@ class Course extends Model
 
     protected $appends = ['formatted_price', 'is_enrolled', 'progress', 'level_label', 'formatted_duration'];
 
+    public function getCoverImageAttribute($value)
+    {
+        return $value ? \App\Support\MediaHelper::absoluteUrl($value) : null;
+    }
+
     const LEVEL_BEGINNER = 'beginner';
     const LEVEL_INTERMEDIATE = 'intermediate';
     const LEVEL_ADVANCED = 'advanced';

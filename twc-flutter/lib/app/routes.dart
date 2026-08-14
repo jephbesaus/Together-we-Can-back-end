@@ -8,10 +8,20 @@ import '../screens/auth/reset_password_screen.dart';
 import '../screens/search/search_screen.dart';
 import '../screens/notification/notification_screen.dart';
 import '../screens/marketplace/marketplace_screen.dart';
+import '../screens/marketplace/add_product_screen.dart';
+import '../screens/marketplace/product_detail_screen.dart';
+import '../screens/marketplace/orders_screen.dart';
 import '../screens/courses/courses_screen.dart';
+import '../screens/courses/search_courses_screen.dart';
+import '../screens/courses/course_detail_screen.dart';
+import '../screens/discover/comments_screen.dart';
 import '../screens/boost_home_screen.dart';
+import '../screens/boost/boost_orders_screen.dart';
 import '../screens/wallet/wallet_screen.dart';
+import '../screens/wallet/savings_screen.dart';
+import '../screens/wallet/transactions_screen.dart';
 import '../screens/wallet/transfer_screen.dart';
+import '../screens/messages/search_messages_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/menu/settings_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
@@ -35,6 +45,18 @@ class AppRoutes {
   static const settings = '/settings';
   static const adminDashboard = '/admin/dashboard';
 
+  static const addProduct = '/add-product';
+  static const productDetail = '/product-detail';
+  static const orders = '/orders';
+  static const searchCourses = '/search-courses';
+  static const courseDetail = '/course-detail';
+  static const comments = '/comments';
+  static const boostOrders = '/boost-orders';
+  static const boostHistory = '/boost-history';
+  static const savings = '/savings';
+  static const transactions = '/transactions';
+  static const searchMessages = '/search-messages';
+
   static final routes = [
     GetPage(name: splash, page: () => const SplashScreen()),
     GetPage(name: login, page: () => const LoginScreen()),
@@ -55,5 +77,17 @@ class AppRoutes {
     GetPage(name: transfer, page: () => const TransferScreen()),
     GetPage(name: settings, page: () => const SettingsScreen()),
     GetPage(name: adminDashboard, page: () => const AdminDashboardScreen()),
+
+    GetPage(name: addProduct, page: () => const AddProductScreen()),
+    GetPage(name: productDetail, page: () => ProductDetailScreen(productId: Get.arguments as String)),
+    GetPage(name: orders, page: () => const OrdersScreen()),
+    GetPage(name: searchCourses, page: () => const SearchCoursesScreen()),
+    GetPage(name: courseDetail, page: () => CourseDetailScreen(courseId: Get.arguments as String)),
+    GetPage(name: comments, page: () => CommentsScreen(post: Get.arguments)),
+    GetPage(name: boostOrders, page: () => const BoostOrdersScreen()),
+    GetPage(name: boostHistory, page: () => const BoostOrdersScreen(title: 'Historique des commandes')),
+    GetPage(name: savings, page: () => const SavingsScreen()),
+    GetPage(name: transactions, page: () => const TransactionsScreen()),
+    GetPage(name: searchMessages, page: () => const SearchMessagesScreen()),
   ];
 }

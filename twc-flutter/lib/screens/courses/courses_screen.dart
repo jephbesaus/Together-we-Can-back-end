@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/media_service.dart';
+import '../../widgets/app_loader.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({super.key});
@@ -56,7 +58,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -71,7 +72,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingView(message: 'Chargement des formations...')
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -119,7 +120,9 @@ class _CoursesScreenState extends State<CoursesScreen> {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             child: CachedNetworkImage(
-              imageUrl: course['cover_image'] ?? 'https://via.placeholder.com/400x200',
+              imageUrl: course['cover_image'] != null
+                  ? MediaService.resolveUrl(course['cover_image'])!
+                  : 'https://via.placeholder.com/400x200',
               height: 150,
               width: double.infinity,
               fit: BoxFit.cover,

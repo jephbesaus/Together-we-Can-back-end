@@ -29,6 +29,7 @@ dependencies:
 
   # Networking
   dio: ^5.4.0
+  connectivity_plus: ^6.0.3
   pusher_channels_flutter: ^2.2.1
   url_launcher: ^6.2.4
   share_plus: ^7.2.2

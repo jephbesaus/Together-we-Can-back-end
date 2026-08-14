@@ -3,7 +3,9 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/media_service.dart';
 import '../../core/models/product.dart';
+import '../../widgets/app_loader.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -196,7 +198,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             const SizedBox(height: 8),
             Expanded(
               child: _isLoading && _products.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const AppLoadingView(message: 'Chargement des produits...')
                   : _products.isEmpty
                       ? Center(
                           child: Column(
@@ -292,7 +294,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 child: product.mainImage != null
                     ? CachedNetworkImage(
-                        imageUrl: product.mainImage!,
+                        imageUrl: MediaService.resolveUrl(product.mainImage)!,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         placeholder: (context, url) => Container(

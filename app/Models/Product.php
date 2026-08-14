@@ -33,6 +33,15 @@ class Product extends Model
     public function favorites() { return $this->hasMany(Favorite::class); }
     public function reviews() { return $this->hasMany(Review::class); }
 
+    public function getImagesAttribute($value)
+    {
+        $images = is_array($value) ? $value : (json_decode($value ?? '[]', true) ?? []);
+        return array_values(array_map(
+            fn ($url) => \App\Support\MediaHelper::absoluteUrl($url),
+            $images
+        ));
+    }
+
     public function getMainImageAttribute() { if ($this->images && is_array($this->images) && count($this->images) > 0) return $this->images[0]; return null; }
     public function getFormattedPriceAttribute() { return number_format($this->price, 0, ',', ' ') . ' FCFA'; }
     public function getIsOutOfStockAttribute() { return $this->stock_quantity !== null && $this->stock_quantity <= 0; }

@@ -15,3 +15,12 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/*
+!/storage/framework/cache/.gitkeep
+!/storage/framework/sessions/.gitkeep
+!/storage/framework/views/.gitkeep
+!/storage/framework/testing/.gitkeep

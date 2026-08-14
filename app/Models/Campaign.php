@@ -25,6 +25,11 @@ class Campaign extends Model
 
     public function user() { return $this->belongsTo(User::class); }
 
+    public function getImageUrlAttribute(?string $value)
+    {
+        return $value ? \App\Support\MediaHelper::absoluteUrl($value) : null;
+    }
+
     public function getIsActiveNowAttribute()
     {
         if ($this->status !== 'active') return false;

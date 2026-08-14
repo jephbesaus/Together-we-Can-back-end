@@ -138,6 +138,13 @@ class FullSMMService
                 }
             }
         }
+
+        // Si l'API FullSMM est indisponible (clé absente, panne...), on retombe
+        // sur les plateformes configurées pour que l'application reste utilisable.
+        if (empty($platforms)) {
+            $platforms = array_keys(config('fullsmm.platforms', []));
+        }
+
         return $platforms;
     }
 }

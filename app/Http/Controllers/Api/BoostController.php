@@ -26,8 +26,20 @@ class BoostController extends Controller
     public function platforms()
     {
         $platforms = $this->fullSMM->getPlatforms();
+        $meta = config('fullsmm.platforms', []);
 
-        return $this->successResponse(['platforms' => $platforms]);
+        $items = collect($platforms)->map(function ($platform) use ($meta) {
+            $name = is_array($platform) ? ($platform['name'] ?? '') : $platform;
+            $conf = $meta[$name] ?? [];
+            return [
+                'id' => strtolower($name),
+                'name' => $name,
+                'icon' => $conf['icon'] ?? null,
+                'color' => $conf['color'] ?? '#00A86B',
+            ];
+        })->values();
+
+        return $this->successResponse(['platforms' => $items]);
     }
 
     public function services($platform)

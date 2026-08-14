@@ -18,5 +18,10 @@ class Announcement extends Model
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
     public function getTimeAgoAttribute() { return $this->created_at->diffForHumans(); }
 
+    public function getImageUrlAttribute(?string $value)
+    {
+        return $value ? \App\Support\MediaHelper::absoluteUrl($value) : null;
+    }
+
     public function scopeActive($query) { return $query->where('is_active', true); }
 }

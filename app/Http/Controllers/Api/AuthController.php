@@ -27,6 +27,16 @@ class AuthController extends Controller
             'phone' => 'required|string|unique:users,phone',
             'password' => 'required|string|min:8|confirmed',
             'referral_code' => 'nullable|string|exists:users,referral_code',
+        ], [
+            'email.required' => 'L\'adresse email est obligatoire.',
+            'email.email' => 'L\'adresse email n\'est pas valide.',
+            'email.unique' => 'Cette adresse email est déjà utilisée. Connectez-vous ou utilisez une autre adresse.',
+            'phone.required' => 'Le numéro de téléphone est obligatoire.',
+            'phone.unique' => 'Ce numéro de téléphone est déjà utilisé. Connectez-vous ou utilisez un autre numéro.',
+            'name.required' => 'Le nom complet est obligatoire.',
+            'password.required' => 'Le mot de passe est obligatoire.',
+            'password.min' => 'Le mot de passe doit faire au moins 8 caractères.',
+            'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
         ]);
 
         if ($validator->fails()) {

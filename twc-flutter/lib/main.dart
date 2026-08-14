@@ -7,6 +7,7 @@ import 'app/constants.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/api_service.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/connectivity_service.dart';
 import 'core/controllers/notification_controller.dart';
 import 'core/controllers/theme_controller.dart';
 import 'core/controllers/locale_controller.dart';
@@ -19,6 +20,11 @@ void main() async {
   Get.put(NotificationController(), permanent: true);
   Get.put(ThemeController(), permanent: true);
   Get.put(LocaleController(), permanent: true);
+
+  // Surveillance de la connexion : affiche une modale "pas de connexion
+  // internet" dès que le réseau disparaît (style Facebook).
+  final connectivity = Get.put(ConnectivityService(), permanent: true);
+  connectivity.init();
 
   // L'app démarre immédiatement, sans attendre Firebase/FCM.
   // Si Firebase n'est pas configuré côté Android (google-services.json manquant,

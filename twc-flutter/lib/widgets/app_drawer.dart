@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../app/constants.dart';
 import '../core/services/api_service.dart';
 import '../core/services/auth_service.dart';
+import '../core/services/media_service.dart';
 import '../core/models/user.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
@@ -72,7 +73,8 @@ class _AppDrawerState extends State<AppDrawer> {
                     CircleAvatar(
                       radius: 28,
                       backgroundImage: _user?.profilePhoto != null
-                          ? CachedNetworkImageProvider(_user!.profilePhoto!)
+                          ? CachedNetworkImageProvider(
+                              MediaService.resolveUrl(_user!.profilePhoto!)!)
                           : null,
                       backgroundColor: Colors.grey[300],
                       child: _user?.profilePhoto == null
@@ -163,7 +165,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     Get.to(() => const SupportScreen());
                   }),
                   const Divider(),
-                  if (_user?.email == 'jephbesaus07@gmail.com')
+                  if (_user?.email == AppConstants.adminEmail)
                     _item(Icons.admin_panel_settings, 'Administration', () {
                       Get.back();
                       Get.to(() => const AdminActivationScreen());

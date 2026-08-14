@@ -41,8 +41,16 @@ class Post extends Model
     public function getMediaUrlsAttribute()
     {
         if (empty($this->media_url)) return [];
-        if ($this->isJson($this->media_url)) return json_decode($this->media_url, true);
-        return [$this->media_url];
+        $urls = $this->isJson($this->media_url) ? json_decode($this->media_url, true) : [$this->media_url];
+        return array_values(array_map(
+            fn ($url) => \App\Support\MediaHelper::absoluteUrl($url),
+            $urls
+        ));
+    }
+
+    public function getThumbnailUrlAttribute(?string $value)
+    {
+        return $value ? \App\Support\MediaHelper::absoluteUrl($value) : null;
     }
 
     public function getTimeAgoAttribute() { return $this->created_at->diffForHumans(); }

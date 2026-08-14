@@ -34,6 +34,11 @@ class Message extends Model
 
     public function getTimeAgoAttribute() { return $this->created_at->diffForHumans(); }
 
+    public function getMediaUrlAttribute(?string $value)
+    {
+        return $value ? \App\Support\MediaHelper::absoluteUrl($value) : null;
+    }
+
     public function getIsSentByUserAttribute()
     {
         if (!auth()->check()) return false;

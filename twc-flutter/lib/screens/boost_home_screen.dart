@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../app/constants.dart';
 import '../core/services/api_service.dart';
+import '../widgets/app_loader.dart';
 import 'boost/select_service_screen.dart';
 
 class BoostHomeScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
   double _balance = 0;
   List<Map<String, dynamic>> _recentOrders = [];
   bool _isLoading = true;
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -26,7 +28,10 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
 
     try {
       final platforms = await _api.get('/boost/platforms');
@@ -60,6 +65,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
       }
     } catch (e) {
       print('Error loading boost data: $e');
+      setState(() => _hasError = true);
     }
 
     setState(() => _isLoading = false);
@@ -68,13 +74,37 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
+          ? const AppLoadingView(message: 'Chargement du Clic-Boost...')
+          : _hasError
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.cloud_off, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Impossible de charger les données Boost.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: _loadData,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConstants.primaryColor,
+                        ),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Réessayer'),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: CustomScrollView(
               slivers: [
                 SliverAppBar(
                   floating: true,
@@ -170,7 +200,38 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
                 ),
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  sliver: SliverGrid(
+                  sliver: _platforms.isEmpty
+                      ? SliverToBoxAdapter(
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(
+                                  Icons.cloud_off,
+                                  size: 40,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Aucune plateforme disponible pour le moment.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                                const SizedBox(height: 8),
+                                TextButton.icon(
+                                  onPressed: _loadData,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Réessayer'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : SliverGrid(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       childAspectRatio: 1.2,
@@ -220,6 +281,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
                 ),
               ],
             ),
+          ),
     );
   }
 
@@ -317,7 +379,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
 
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: statusColor.withOpacity(0.1),
+        backgroundColor: statusColor.withValues(alpha: 0.1),
         child: Icon(
           Icons.trending_up,
           color: statusColor,
