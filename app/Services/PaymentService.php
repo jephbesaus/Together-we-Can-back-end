@@ -14,6 +14,9 @@ class PaymentService
 {
     public function depositChariow($userId, $amount, $email, $provider = 'orange')
     {
+        $user = User::find($userId);
+        if (!$user) throw new \Exception('Utilisateur non trouvé.');
+
         $reference = 'CHR-DEP-' . Str::random(16);
 
         $transaction = Transaction::create([
@@ -33,7 +36,8 @@ class PaymentService
 
         try {
             $apiKey = config('chariow.api_key');
-            $baseUrl = config('chariow.payment_url');
+            $productId = config('chariow.deposit_product_id', 'prd_dd7c35ic');
+            $storeUrl = config('chariow.store_url', 'https://epazzsvw.mychariow.store');
 
             if (!$apiKey) {
                 $transaction->update([
@@ -45,33 +49,66 @@ class PaymentService
                 return ['success' => false, 'message' => 'Service de paiement non configuré.'];
             }
 
-            $response = Http::timeout(30)->post($baseUrl . '/api/payments/initiate', [
-                'api_key' => $apiKey,
-                'amount' => $amount,
-                'email' => $email,
-                'reference' => $reference,
-                'provider' => $provider,
-                'currency' => config('chariow.currency', 'CDF'),
-                'callback_url' => url('/api/webhooks/chariow'),
-                'description' => 'Dépôt Together We Can - ' . $reference,
-            ]);
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type' => 'application/json',
+                ])
+                ->post('https://api.chariow.com/v1/checkout', [
+                    'product_id' => $productId,
+                    'email' => $email,
+                    'first_name' => $user->name ?? 'Utilisateur',
+                    'last_name' => 'TWC',
+                    'phone' => [
+                        'number' => $user->phone ?? '000000000',
+                        'country_code' => 'CD',
+                    ],
+                    'payment_currency' => 'CDF',
+                    'redirect_url' => $storeUrl . '/thank-you',
+                    'custom_metadata' => [
+                        'user_id' => (string) $userId,
+                        'reference' => $reference,
+                        'type' => 'deposit',
+                    ],
+                ]);
 
             if ($response->successful()) {
                 $data = $response->json();
-                $transaction->update([
-                    'metadata' => array_merge($transaction->metadata ?? [], [
-                        'chariow' => $data,
-                        'payment_url' => $data['payment_url'] ?? null,
-                        'chariow_reference' => $data['reference'] ?? null,
-                    ]),
-                ]);
+                $step = $data['data']['step'] ?? null;
 
-                return [
-                    'success' => true,
-                    'transaction' => $transaction,
-                    'payment_url' => $data['payment_url'] ?? null,
-                    'message' => 'Demande de paiement envoyée.',
-                ];
+                if ($step === 'payment') {
+                    $checkoutUrl = $data['data']['payment']['checkout_url'] ?? null;
+                    $saleId = $data['data']['purchase']['id'] ?? null;
+
+                    $transaction->update([
+                        'metadata' => array_merge($transaction->metadata ?? [], [
+                            'chariow_sale_id' => $saleId,
+                            'checkout_url' => $checkoutUrl,
+                        ]),
+                    ]);
+
+                    return [
+                        'success' => true,
+                        'transaction' => $transaction,
+                        'payment_url' => $checkoutUrl,
+                        'message' => 'Redirection vers le paiement...',
+                    ];
+                }
+
+                if ($step === 'completed') {
+                    $transaction->update([
+                        'status' => 'completed',
+                        'completed_at' => now(),
+                    ]);
+                    $user->increment('boost_balance', $amount);
+
+                    return [
+                        'success' => true,
+                        'transaction' => $transaction,
+                        'payment_url' => null,
+                        'message' => 'Paiement confirmé.',
+                    ];
+                }
             }
 
             $errorMsg = $response->json('message') ?? 'Erreur lors du paiement.';
@@ -101,36 +138,6 @@ class PaymentService
         return $this->depositChariow($userId, $amount, $email, 'mtn');
     }
 
-    public function depositFusionPay($userId, $amount, $phoneNumber, $provider = 'orange')
-    {
-        $reference = 'DEP-' . Str::random(16);
-        $transaction = Transaction::create([
-            'user_id' => $userId,
-            'type' => 'deposit',
-            'amount' => $amount,
-            'reference' => $reference,
-            'payment_method' => $provider,
-            'status' => 'pending',
-            'description' => 'Dépôt via FusionPay (' . $provider . ')',
-            'metadata' => json_encode(['phone' => $phoneNumber, 'provider' => $provider, 'initiated_at' => now()->toISOString()]),
-        ]);
-
-        try {
-            $fusionPay = app(FusionPayService::class);
-            $result = $fusionPay->initiatePayment($amount, $phoneNumber, $reference, 'Dépôt Together We Can - ' . $reference);
-            if ($result['status'] === 'success') {
-                $transaction->update(['metadata' => array_merge($transaction->metadata ?? [], ['fusionpay' => $result, 'transaction_id' => $result['transaction_id'] ?? null])]);
-                return ['success' => true, 'transaction' => $transaction, 'payment_url' => $result['payment_url'] ?? null, 'message' => 'Demande de paiement envoyée.'];
-            } else {
-                $transaction->update(['status' => 'failed', 'metadata' => array_merge($transaction->metadata ?? [], ['error' => $result['message'] ?? 'Erreur inconnue'])]);
-                return ['success' => false, 'message' => $result['message'] ?? 'Erreur lors du paiement.'];
-            }
-        } catch (\Exception $e) {
-            $transaction->update(['status' => 'failed', 'metadata' => array_merge($transaction->metadata ?? [], ['error' => $e->getMessage()])]);
-            return ['success' => false, 'message' => 'Erreur technique: ' . $e->getMessage()];
-        }
-    }
-
     public function withdrawChariow($userId, $amount, $phone, $provider = 'orange')
     {
         $user = User::find($userId);
@@ -158,51 +165,6 @@ class PaymentService
                 ]),
             ]);
 
-            $apiKey = config('chariow.api_key');
-            $baseUrl = config('chariow.payment_url');
-
-            if ($apiKey) {
-                try {
-                    $response = Http::timeout(30)->post($baseUrl . '/api/payments/withdraw', [
-                        'api_key' => $apiKey,
-                        'amount' => $amount,
-                        'phone' => $phone,
-                        'provider' => $provider,
-                        'reference' => $reference,
-                        'currency' => config('chariow.currency', 'CDF'),
-                    ]);
-
-                    if ($response->successful()) {
-                        $data = $response->json();
-                        $transaction->update([
-                            'status' => 'processing',
-                            'metadata' => array_merge($transaction->metadata ?? [], [
-                                'chariow_withdrawal' => $data,
-                            ]),
-                        ]);
-                    } else {
-                        $transaction->update([
-                            'status' => 'failed',
-                            'metadata' => array_merge($transaction->metadata ?? [], [
-                                'error' => $response->json('message') ?? 'Erreur retrait',
-                            ]),
-                        ]);
-                        $user->increment('boost_balance', $amount);
-                        DB::rollBack();
-                        return $transaction;
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Chariow withdraw API error: ' . $e->getMessage());
-                    $transaction->update([
-                        'status' => 'failed',
-                        'metadata' => array_merge($transaction->metadata ?? [], ['error' => $e->getMessage()]),
-                    ]);
-                    $user->increment('boost_balance', $amount);
-                    DB::rollBack();
-                    return $transaction;
-                }
-            }
-
             DB::commit();
             return $transaction;
         } catch (\Exception $e) {
@@ -228,13 +190,36 @@ class PaymentService
         try {
             $fromUser->decrement('boost_balance', $amount);
             $toUser->increment('boost_balance', $amount);
-            $senderTransaction = Transaction::create(['user_id' => $fromUserId, 'type' => 'transfer_sent', 'amount' => $amount, 'reference' => 'TRF-' . Str::random(12), 'payment_method' => 'wallet', 'status' => 'completed', 'description' => $description ?? 'Transfert vers ' . $toUser->name, 'metadata' => json_encode(['to_user_id' => $toUserId, 'to_user_name' => $toUser->name]), 'completed_at' => now()]);
-            $receiverTransaction = Transaction::create(['user_id' => $toUserId, 'type' => 'transfer_received', 'amount' => $amount, 'reference' => 'TRF-' . Str::random(12), 'payment_method' => 'wallet', 'status' => 'completed', 'description' => $description ?? 'Reçu de ' . $fromUser->name, 'metadata' => json_encode(['from_user_id' => $fromUserId, 'from_user_name' => $fromUser->name]), 'completed_at' => now()]);
+            $senderTransaction = Transaction::create([
+                'user_id' => $fromUserId,
+                'type' => 'transfer_sent',
+                'amount' => $amount,
+                'reference' => 'TRF-' . Str::random(12),
+                'payment_method' => 'wallet',
+                'status' => 'completed',
+                'description' => $description ?? 'Transfert vers ' . $toUser->name,
+                'metadata' => json_encode(['to_user_id' => $toUserId, 'to_user_name' => $toUser->name]),
+                'completed_at' => now(),
+            ]);
+            $receiverTransaction = Transaction::create([
+                'user_id' => $toUserId,
+                'type' => 'transfer_received',
+                'amount' => $amount,
+                'reference' => 'TRF-' . Str::random(12),
+                'payment_method' => 'wallet',
+                'status' => 'completed',
+                'description' => $description ?? 'Reçu de ' . $fromUser->name,
+                'metadata' => json_encode(['from_user_id' => $fromUserId, 'from_user_name' => $fromUser->name]),
+                'completed_at' => now(),
+            ]);
             $this->createNotification($fromUserId, 'transfer_sent', 'Vous avez envoyé ' . number_format($amount, 0) . ' CDF à ' . $toUser->name, ['transaction_id' => $senderTransaction->id]);
             $this->createNotification($toUserId, 'transfer_received', 'Vous avez reçu ' . number_format($amount, 0) . ' CDF de ' . $fromUser->name, ['transaction_id' => $receiverTransaction->id]);
             DB::commit();
             return ['sender_transaction' => $senderTransaction, 'receiver_transaction' => $receiverTransaction];
-        } catch (\Exception $e) { DB::rollBack(); throw $e; }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 
     public function checkChariowStatus($transactionId)
@@ -251,6 +236,13 @@ class PaymentService
 
     private function createNotification($userId, $type, $message, $data = [])
     {
-        Notification::create(['user_id' => $userId, 'type' => $type, 'message' => $message, 'data' => json_encode($data), 'has_sound' => true, 'is_read' => false]);
+        Notification::create([
+            'user_id' => $userId,
+            'type' => $type,
+            'message' => $message,
+            'data' => json_encode($data),
+            'has_sound' => true,
+            'is_read' => false,
+        ]);
     }
 }

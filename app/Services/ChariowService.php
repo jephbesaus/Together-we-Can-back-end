@@ -11,93 +11,132 @@ use Illuminate\Support\Str;
 class ChariowService
 {
     /**
-     * Traite la notification de paiement envoyée par Chariow.
-     *
-     * ⚠️ Le format exact du payload envoyé par Chariow n'a pas encore été
-     * confirmé avec un vrai exemple. Ce code essaie plusieurs noms de champs
-     * probables (email, montant, statut) pour rester tolérant. Dès qu'un vrai
-     * webhook aura été reçu (voir les logs Laravel), ajuster les clés ci-dessous
-     * pour qu'elles correspondent exactement à leur format.
+     * Vérifie la signature HMAC-SHA256 d'un Pulse Chariow.
      */
-    public function handleWebhook(array $payload)
+    public function verifySignature(string $rawBody, string $signature): bool
     {
-        Log::info('Chariow Webhook Received', ['payload' => $payload]);
-
-        $status = $payload['status']
-            ?? $payload['event']
-            ?? $payload['data']['status']
-            ?? null;
-
-        $isSuccess = in_array(strtolower((string) $status), ['success', 'completed', 'sale.completed', 'paid', 'succeeded']);
-
-        if (!$isSuccess) {
-            Log::info('Chariow webhook ignoré (statut non confirmé).', ['status' => $status]);
-            return ['status' => 'ignored'];
+        $secret = config('chariow.pulse_secret');
+        if (!$secret) {
+            Log::warning('Chariow: pulse_secret non configuré, signature non vérifiée.');
+            return true;
         }
 
-        $email = $payload['customer']['email']
-            ?? $payload['email']
-            ?? $payload['data']['customer']['email']
-            ?? null;
+        $expected = 'sha256=' . hash_hmac('sha256', $rawBody, $secret);
+        return hash_equals($expected, $signature);
+    }
 
-        $amount = $payload['amount']
-            ?? $payload['total']
-            ?? $payload['data']['amount']
-            ?? null;
+    /**
+     * Traite un Pulse Chariow (webhook).
+     */
+    public function handleWebhook(array $payload, string $rawBody = '', string $signature = '')
+    {
+        $event = $payload['event'] ?? null;
 
-        $reference = $payload['transaction_id']
-            ?? $payload['id']
-            ?? $payload['data']['id']
-            ?? Str::random(12);
+        if (!$event) {
+            Log::warning('Chariow webhook: event manquant.', ['payload' => array_keys($payload)]);
+            return ['status' => 'ignored', 'message' => 'No event'];
+        }
+
+        switch ($event) {
+            case 'successful.sale':
+                return $this->handleSuccessfulSale($payload);
+
+            case 'abandoned.sale':
+                Log::info('Chariow: vente abandonnée.', ['payload' => $payload]);
+                return ['status' => 'ignored', 'message' => 'Abandoned sale'];
+
+            case 'failed.sale':
+                Log::info('Chariow: vente échouée.', ['payload' => $payload]);
+                return ['status' => 'ignored', 'message' => 'Failed sale'];
+
+            default:
+                Log::info('Chariow: event non géré.', ['event' => $event]);
+                return ['status' => 'ignored', 'message' => 'Unhandled event: ' . $event];
+        }
+    }
+
+    /**
+     * Traite une vente réussie (successful.sale).
+     */
+    private function handleSuccessfulSale(array $payload): array
+    {
+        $sale = $payload['sale'] ?? [];
+        $customer = $payload['customer'] ?? [];
+        $product = $payload['product'] ?? [];
+
+        $email = $customer['email'] ?? null;
+        $amount = $sale['amount']['value'] ?? null;
+        $saleId = $sale['id'] ?? null;
+        $status = $sale['status'] ?? null;
+        $metadata = $sale['custom_metadata'] ?? [];
 
         if (!$email || !$amount) {
-            Log::error('Chariow webhook: email ou montant manquant, impossible de créditer.', ['payload' => $payload]);
+            Log::error('Chariow webhook: email ou montant manquant.', [
+                'email' => $email,
+                'amount' => $amount,
+            ]);
             return ['status' => 'error', 'message' => 'Missing email or amount'];
         }
 
         $user = User::where('email', $email)->first();
-
         if (!$user) {
-            Log::error('Chariow webhook: utilisateur introuvable pour cet email.', ['email' => $email]);
-            return ['status' => 'error', 'message' => 'User not found'];
+            Log::error('Chariow webhook: utilisateur introuvable.', ['email' => $email]);
+            return ['status' => 'error', 'message' => 'User not found for email: ' . $email];
         }
 
-        // Idempotence : si une transaction avec cette référence existe déjà
-        // et est complétée, on ne crédite jamais deux fois.
-        $existing = Transaction::where('reference', 'CHR-' . $reference)->first();
+        $reference = $metadata['reference'] ?? $saleId ?? ('CHR-' . Str::random(12));
+
+        $existing = Transaction::where('reference', $reference)->first();
         if ($existing && $existing->status === 'completed') {
-            Log::info('Chariow webhook ignoré : transaction déjà traitée.', ['reference' => $reference]);
+            Log::info('Chariow webhook: transaction déjà traitée.', ['reference' => $reference]);
             return ['status' => 'already_processed'];
         }
 
-        $transaction = $existing ?? Transaction::create([
-            'user_id' => $user->id,
-            'type' => 'deposit',
-            'amount' => $amount,
-            'reference' => 'CHR-' . $reference,
-            'payment_method' => 'chariow',
-            'status' => 'pending',
-            'description' => 'Dépôt via Chariow',
-            'metadata' => json_encode(['chariow' => $payload]),
-        ]);
-
-        $transaction->update([
-            'status' => 'completed',
-            'completed_at' => now(),
-            'metadata' => json_encode(['chariow' => $payload]),
-        ]);
+        if ($existing) {
+            $existing->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'metadata' => array_merge($existing->metadata ?? [], [
+                    'chariow_payload' => $payload,
+                    'chariow_sale_id' => $saleId,
+                ]),
+            ]);
+            $transaction = $existing;
+        } else {
+            $transaction = Transaction::create([
+                'user_id' => $user->id,
+                'type' => 'deposit',
+                'amount' => $amount,
+                'reference' => $reference,
+                'payment_method' => 'chariow',
+                'status' => 'completed',
+                'description' => 'Dépôt via Chariow confirmé par webhook',
+                'metadata' => json_encode([
+                    'chariow_payload' => $payload,
+                    'chariow_sale_id' => $saleId,
+                ]),
+                'completed_at' => now(),
+            ]);
+        }
 
         $user->increment('boost_balance', $amount);
 
         Notification::create([
             'user_id' => $user->id,
             'type' => 'payment',
-            'message' => 'Votre paiement de ' . number_format($amount, 0) . ' CDF a été confirmé.',
-            'data' => json_encode(['transaction_id' => $transaction->id]),
+            'message' => 'Votre paiement de ' . number_format($amount, 0) . ' CDF a été confirmé via Chariow.',
+            'data' => json_encode([
+                'transaction_id' => $transaction->id,
+                'sale_id' => $saleId,
+            ]),
             'has_sound' => true,
         ]);
 
-        Log::info('Chariow: solde crédité avec succès.', ['user_id' => $user->id, 'amount' => $amount]);
+        Log::info('Chariow: solde crédité.', [
+            'user_id' => $user->id,
+            'amount' => $amount,
+            'sale_id' => $saleId,
+        ]);
 
         return ['status' => 'success'];
     }

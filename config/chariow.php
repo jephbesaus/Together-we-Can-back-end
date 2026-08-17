@@ -2,30 +2,18 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Chariow Payment Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configuration pour l'intégration Chariow (paiement mobile Money).
-    | Les clés API doivent être définies dans le fichier .env.
-    |
-    */
-
     'api_key' => env('CHARIOW_API_KEY'),
 
-    'payment_url' => env('CHARIOW_PAYMENT_URL', 'https://api.chariow.com'),
+    'api_url' => 'https://api.chariow.com/v1',
 
-    'webhook_secret' => env('CHARIOW_WEBHOOK_SECRET'),
+    'store_url' => env('CHARIOW_STORE_URL', 'https://epazzsvw.mychariow.store'),
 
-    'currency' => env('CHARIOW_CURRENCY', 'CDF'),
+    'deposit_product_id' => env('CHARIOW_DEPOSIT_PRODUCT_ID', 'prd_dd7c35ic'),
 
-    'supported_providers' => [
-        'orange' => 'Orange Money',
-        'mtn' => 'MTN Mobile Money',
-        'vodacom' => 'Vodacom M-Pesa',
-        'airtel' => 'Airtel Money',
-        'africell' => 'Africell Money',
-    ],
+    'boost_product_id' => env('CHARIOW_BOOST_PRODUCT_ID', 'prd_vd3rkixz'),
+
+    'pulse_secret' => env('CHARIOW_PULSE_SECRET'),
+
+    'currency' => 'CDF',
 
 ];

@@ -3,65 +3,45 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\FusionPayService;
 use App\Services\ChariowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
-    protected $fusionPay;
     protected $chariow;
 
-    public function __construct(FusionPayService $fusionPay, ChariowService $chariow)
+    public function __construct(ChariowService $chariow)
     {
-        $this->fusionPay = $fusionPay;
         $this->chariow = $chariow;
-    }
-
-    public function fusionPay(Request $request)
-    {
-        if (!$this->fusionPay->verifySignature($request)) {
-            Log::warning('Webhook FusionPay rejeté : signature invalide.', ['ip' => $request->ip()]);
-            return response()->json(['status' => 'error', 'message' => 'Invalid signature'], 403);
-        }
-
-        $result = $this->fusionPay->handleWebhook($request->all());
-
-        return response()->json($result);
     }
 
     public function chariow(Request $request)
     {
-        Log::info('Chariow webhook reçu.', [
+        $rawBody = $request->getContent();
+        $signature = $request->header('x-chariow-signature', '');
+
+        Log::info('Chariow Pulse reçu.', [
             'ip' => $request->ip(),
-            'method' => $request->method(),
-            'headers' => $request->headers->all(),
+            'event' => $request->header('x-pulse-event', 'unknown'),
+            'delivery_id' => $request->header('x-pulse-delivery-id', 'unknown'),
         ]);
 
-        $payload = $request->all();
-
-        if (empty($payload)) {
-            Log::error('Chariow webhook : payload vide.');
-            return response()->json(['status' => 'error', 'message' => 'Empty payload'], 400);
+        if ($signature && !$this->chariow->verifySignature($rawBody, $signature)) {
+            Log::warning('Chariow webhook rejeté : signature invalide.', ['ip' => $request->ip()]);
+            return response()->json(['status' => 'error', 'message' => 'Invalid signature'], 401);
         }
 
-        $secret = config('chariow.webhook_secret');
-        if ($secret) {
-            $signature = $request->header('X-Chariow-Signature') ?? $request->header('X-Signature');
-            if ($signature) {
-                $expected = hash_hmac('sha256', json_encode($payload), $secret);
-                if (!hash_equals($expected, $signature)) {
-                    Log::warning('Webhook Chariow rejeté : signature invalide.', ['ip' => $request->ip()]);
-                    return response()->json(['status' => 'error', 'message' => 'Invalid signature'], 403);
-                }
-            }
+        $payload = json_decode($rawBody, true);
+        if (empty($payload)) {
+            Log::error('Chariow webhook : payload invalide.');
+            return response()->json(['status' => 'error', 'message' => 'Invalid payload'], 400);
         }
 
         try {
-            $result = $this->chariow->handleWebhook($payload);
+            $result = $this->chariow->handleWebhook($payload, $rawBody, $signature);
         } catch (\Exception $e) {
-            Log::error('Chariow webhook exception : ' . $e->getMessage(), ['payload' => $payload]);
+            Log::error('Chariow webhook exception: ' . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => 'Internal error'], 500);
         }
 
