@@ -25,33 +25,49 @@ class BoostController extends Controller
 
     public function platforms()
     {
-        $platforms = $this->fullSMM->getPlatforms();
-        $meta = config('fullsmm.platforms', []);
+        try {
+            $platforms = $this->fullSMM->getPlatforms();
+            $meta = config('fullsmm.platforms', []);
 
-        $items = collect($platforms)->map(function ($platform) use ($meta) {
-            $name = is_array($platform) ? ($platform['name'] ?? '') : $platform;
-            $conf = $meta[$name] ?? [];
-            return [
+            $items = collect($platforms)->map(function ($platform) use ($meta) {
+                $name = is_array($platform) ? ($platform['name'] ?? '') : $platform;
+                $conf = $meta[$name] ?? [];
+                return [
+                    'id' => strtolower($name),
+                    'name' => $name,
+                    'icon' => $conf['icon'] ?? null,
+                    'color' => $conf['color'] ?? '#00A86B',
+                ];
+            })->values();
+
+            return $this->successResponse(['platforms' => $items]);
+        } catch (\Exception $e) {
+            return $this->successResponse(['platforms' => collect(array_keys(config('fullsmm.platforms', [])))->map(fn($name) => [
                 'id' => strtolower($name),
                 'name' => $name,
-                'icon' => $conf['icon'] ?? null,
-                'color' => $conf['color'] ?? '#00A86B',
-            ];
-        })->values();
-
-        return $this->successResponse(['platforms' => $items]);
+                'icon' => strtolower($name),
+                'color' => '#00A86B',
+            ])->values()]);
+        }
     }
 
     public function services($platform)
     {
-        $services = $this->fullSMM->getPlatformServices($platform);
-
-        return $this->successResponse(['services' => array_values($services)]);
+        try {
+            $services = $this->fullSMM->getPlatformServices($platform);
+            return $this->successResponse(['services' => array_values($services)]);
+        } catch (\Exception $e) {
+            return $this->successResponse(['services' => []]);
+        }
     }
 
     public function balance()
     {
-        return $this->successResponse(['boost_balance' => auth()->user()->boost_balance]);
+        try {
+            return $this->successResponse(['boost_balance' => auth()->user()->boost_balance]);
+        } catch (\Exception $e) {
+            return $this->successResponse(['boost_balance' => 0]);
+        }
     }
 
     public function placeOrder(Request $request)

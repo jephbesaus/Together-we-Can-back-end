@@ -102,45 +102,53 @@ class FullSMMService
 
     public function getCategories()
     {
-        $services = $this->getServices();
-        if (!$services) return [];
-        $categories = [];
-        foreach ($services as $service) {
-            if (isset($service['category']) && !in_array($service['category'], $categories)) {
-                $categories[] = $service['category'];
+        try {
+            $services = $this->getServices();
+            if (!$services || !is_array($services)) return [];
+            $categories = [];
+            foreach ($services as $service) {
+                if (isset($service['category']) && !in_array($service['category'], $categories)) {
+                    $categories[] = $service['category'];
+                }
             }
+            return $categories;
+        } catch (\Exception $e) {
+            Log::error('FullSMM getCategories error: ' . $e->getMessage());
+            return [];
         }
-        return $categories;
     }
 
     public function getPlatforms()
     {
-        $categories = $this->getCategories();
-        $platforms = [];
-        $platformMap = [
-            'YouTube' => ['youtube', 'yt'],
-            'TikTok' => ['tiktok', 'tt'],
-            'Facebook' => ['facebook', 'fb'],
-            'Instagram' => ['instagram', 'ig'],
-            'Twitter' => ['twitter', 'x'],
-            'Telegram' => ['telegram'],
-            'WhatsApp' => ['whatsapp'],
-        ];
+        try {
+            $categories = $this->getCategories();
+            $platforms = [];
+            $platformMap = [
+                'YouTube' => ['youtube', 'yt'],
+                'TikTok' => ['tiktok', 'tt'],
+                'Facebook' => ['facebook', 'fb'],
+                'Instagram' => ['instagram', 'ig'],
+                'Twitter' => ['twitter', 'x'],
+                'Telegram' => ['telegram'],
+                'WhatsApp' => ['whatsapp'],
+            ];
 
-        foreach ($categories as $category) {
-            $categoryLower = strtolower($category);
-            foreach ($platformMap as $platform => $keywords) {
-                foreach ($keywords as $keyword) {
-                    if (strpos($categoryLower, $keyword) !== false) {
-                        if (!in_array($platform, $platforms)) $platforms[] = $platform;
-                        break 2;
+            foreach ($categories as $category) {
+                $categoryLower = strtolower($category);
+                foreach ($platformMap as $platform => $keywords) {
+                    foreach ($keywords as $keyword) {
+                        if (strpos($categoryLower, $keyword) !== false) {
+                            if (!in_array($platform, $platforms)) $platforms[] = $platform;
+                            break 2;
+                        }
                     }
                 }
             }
+        } catch (\Exception $e) {
+            Log::error('FullSMM getPlatforms error: ' . $e->getMessage());
+            $platforms = [];
         }
 
-        // Si l'API FullSMM est indisponible (clé absente, panne...), on retombe
-        // sur les plateformes configurées pour que l'application reste utilisable.
         if (empty($platforms)) {
             $platforms = array_keys(config('fullsmm.platforms', []));
         }
