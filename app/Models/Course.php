@@ -14,7 +14,8 @@ class Course extends Model
         'instructor_id', 'title', 'description', 'cover_image', 'category',
         'level', 'price', 'is_free', 'is_published', 'featured',
         'duration_minutes', 'lessons_count', 'students_count', 'rating',
-        'reviews_count', 'what_you_will_learn', 'requirements', 'target_audience'
+        'reviews_count', 'what_you_will_learn', 'requirements', 'target_audience',
+        'status', 'rejection_reason'
     ];
 
     protected $casts = [
@@ -29,6 +30,18 @@ class Course extends Model
     ];
 
     protected $appends = ['formatted_price', 'is_enrolled', 'progress', 'level_label', 'formatted_duration'];
+
+    const STATUS_DRAFT = 'draft';
+    const STATUS_SUBMITTED = 'submitted';
+    const STATUS_APPROVED = 'approved';
+    const STATUS_REJECTED = 'rejected';
+
+    const STATUS_LABELS = [
+        'draft' => 'Brouillon',
+        'submitted' => 'Soumis',
+        'approved' => 'Approuvé',
+        'rejected' => 'Refusé',
+    ];
 
     public function getCoverImageAttribute($value)
     {
@@ -47,15 +60,20 @@ class Course extends Model
     public function reviews() { return $this->hasMany(CourseReview::class); }
     public function sections() { return $this->hasMany(CourseSection::class)->orderBy('order_position', 'asc'); }
 
-    public function getFormattedPriceAttribute() { return $this->is_free ? 'Gratuit' : number_format($this->price, 0, ',', ' ') . ' FCFA'; }
+    public function getFormattedPriceAttribute() { return $this->is_free ? 'Gratuit' : number_format($this->price, 0, ',', ' ') . ' CDF'; }
     public function getIsEnrolledAttribute() { if (!auth()->check()) return false; return $this->enrollments()->where('user_id', auth()->id())->exists(); }
     public function getProgressAttribute() { if (!auth()->check()) return 0; $enrollment = $this->enrollments()->where('user_id', auth()->id())->first(); return $enrollment ? $enrollment->progress : 0; }
     public function getLevelLabelAttribute() { return self::LEVEL_LABELS[$this->level] ?? $this->level; }
     public function getFormattedDurationAttribute() { $hours = floor($this->duration_minutes / 60); $minutes = $this->duration_minutes % 60; if ($hours > 0) return $hours . 'h ' . $minutes . 'min'; return $minutes . 'min'; }
+    public function getStatusLabelAttribute() { return self::STATUS_LABELS[$this->status] ?? $this->status; }
 
-    public function scopePublished($query) { return $query->where('is_published', true); }
+    public function scopePublished($query) { return $query->where('is_published', true)->where('status', 'approved'); }
     public function scopeFree($query) { return $query->where('is_free', true); }
     public function scopeFeatured($query) { return $query->where('featured', true); }
+    public function scopeDraft($query) { return $query->where('status', 'draft'); }
+    public function scopeSubmitted($query) { return $query->where('status', 'submitted'); }
+    public function scopeApproved($query) { return $query->where('status', 'approved'); }
+    public function scopeRejected($query) { return $query->where('status', 'rejected'); }
     public function scopeSearch($query, $term) { return $query->where(function ($q) use ($term) { $q->where('title', 'LIKE', "%{$term}%")->orWhere('description', 'LIKE', "%{$term}%")->orWhere('category', 'LIKE', "%{$term}%"); }); }
 
     public function incrementStudents() { $this->increment('students_count'); }

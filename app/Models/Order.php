@@ -55,7 +55,7 @@ class Order extends Model
 
     public function getStatusLabelAttribute() { return self::STATUS_LABELS[$this->status] ?? $this->status; }
     public function getStatusColorAttribute() { return self::STATUS_COLORS[$this->status] ?? '#9E9E9E'; }
-    public function getFormattedTotalAttribute() { return number_format($this->total_price, 0, ',', ' ') . ' FCFA'; }
+    public function getFormattedTotalAttribute() { return number_format($this->total_price, 0, ',', ' ') . ' CDF'; }
 
     public function scopePending($query) { return $query->where('status', 'pending'); }
     public function scopeActive($query) { return $query->whereNotIn('status', ['cancelled', 'completed', 'refunded']); }

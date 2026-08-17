@@ -68,7 +68,7 @@ class Transaction extends Model
     public function getFormattedAmountAttribute()
     {
         $prefix = in_array($this->type, ['withdrawal', 'boost_payment', 'marketplace_payment', 'course_payment', 'transfer_sent']) ? '- ' : '+ ';
-        return $prefix . number_format($this->amount, 0, ',', ' ') . ' FCFA';
+        return $prefix . number_format($this->amount, 0, ',', ' ') . ' CDF';
     }
 
     public function scopePending($query) { return $query->where('status', 'pending'); }

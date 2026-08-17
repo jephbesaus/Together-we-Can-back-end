@@ -107,7 +107,7 @@ class FusionPayService
         $transaction->update(['status' => $newStatus, 'metadata' => array_merge($transaction->metadata ?? [], ['fusionpay' => $payload, 'updated_at' => now()->toISOString()]), 'completed_at' => in_array($newStatus, ['completed', 'failed']) ? now() : null]);
         if ($newStatus === 'completed') {
             $user = \App\Models\User::find($transaction->user_id);
-            if ($user) { $user->increment('boost_balance', $transaction->amount); $this->createNotification($user->id, 'payment', 'Votre paiement de ' . number_format($transaction->amount, 0) . ' FCFA a été confirmé.', ['transaction_id' => $transaction->id]); }
+            if ($user) { $user->increment('boost_balance', $transaction->amount); $this->createNotification($user->id, 'payment', 'Votre paiement de ' . number_format($transaction->amount, 0) . ' CDF a été confirmé.', ['transaction_id' => $transaction->id]); }
         }
         Log::info('Transaction updated via webhook', ['transaction_id' => $transactionId, 'status' => $newStatus]);
     }

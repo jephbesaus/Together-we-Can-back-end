@@ -76,7 +76,7 @@ class TransactionController extends Controller
         $transaction = Transaction::forUser(auth()->id())->find($id);
 
         if (!$transaction) {
-            return $this->errorResponse('Transaction not found.', 404);
+            return $this->errorResponse('Transaction non trouvée.', 404);
         }
 
         return $this->successResponse(['transaction' => $transaction]);
@@ -86,7 +86,7 @@ class TransactionController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:500',
-            'phone' => 'required|string',
+            'email' => 'required|email',
             'provider' => 'required|in:orange,mtn,vodacom,airtel,africell',
         ]);
 
@@ -94,7 +94,12 @@ class TransactionController extends Controller
             return $this->errorResponse($validator->errors(), 422);
         }
 
-        $result = $this->paymentService->depositFusionPay(auth()->id(), $request->amount, $request->phone, $request->provider);
+        $result = $this->paymentService->depositChariow(
+            auth()->id(),
+            $request->amount,
+            $request->email,
+            $request->provider
+        );
 
         if (!$result['success']) {
             return $this->errorResponse($result['message'], 400);
@@ -105,17 +110,17 @@ class TransactionController extends Controller
 
     public function checkDepositStatus($transactionId)
     {
-        $transaction = \App\Models\Transaction::forUser(auth()->id())->find($transactionId);
+        $transaction = Transaction::forUser(auth()->id())->find($transactionId);
 
         if (!$transaction) {
-            return $this->errorResponse('Transaction not found.', 404);
+            return $this->errorResponse('Transaction non trouvée.', 404);
         }
 
         if ($transaction->status !== 'pending') {
             return $this->successResponse(['status' => $transaction->status, 'transaction' => $transaction]);
         }
 
-        $result = $this->paymentService->checkFusionPayStatus($transactionId);
+        $result = $this->paymentService->checkChariowStatus($transactionId);
 
         if (!$result['success']) {
             return $this->errorResponse($result['message'] ?? 'Vérification impossible pour le moment.', 400);
@@ -137,10 +142,15 @@ class TransactionController extends Controller
         }
 
         try {
-            $transaction = $this->paymentService->withdraw(auth()->id(), $request->amount, $request->phone, $request->provider);
+            $transaction = $this->paymentService->withdrawChariow(
+                auth()->id(),
+                $request->amount,
+                $request->phone,
+                $request->provider
+            );
 
             return $this->successResponse([
-                'message' => 'Withdrawal request submitted.',
+                'message' => 'Demande de retrait soumise.',
                 'transaction' => $transaction,
             ]);
         } catch (\Exception $e) {
@@ -164,7 +174,7 @@ class TransactionController extends Controller
             $result = $this->paymentService->transfer(auth()->id(), $request->to_user_id, $request->amount, $request->description);
 
             return $this->successResponse([
-                'message' => 'Transfer completed successfully.',
+                'message' => 'Transfert effectué avec succès.',
                 'data' => $result,
             ]);
         } catch (\Exception $e) {

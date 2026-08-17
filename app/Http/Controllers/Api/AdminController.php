@@ -403,9 +403,80 @@ class AdminController extends Controller
         $query = Course::with('instructor');
 
         if ($request->filled('status')) {
-            if ($request->status === 'published') $query->where('is_published', true);
-            if ($request->status === 'draft') $query->where('is_published', false);
+            $query->where('status', $request->status);
         }
+
+        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+        return $this->successResponse([
+            'courses' => $result['items'],
+            'has_more' => $result['has_more'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+        ]);
+    }
+
+    public function approveCourse(Request $request, $id)
+    {
+        $course = Course::find($id);
+
+        if (!$course) {
+            return $this->errorResponse('Formation non trouvée.', 404);
+        }
+
+        $course->update([
+            'status' => Course::STATUS_APPROVED,
+            'is_published' => true,
+            'rejection_reason' => null,
+        ]);
+
+        Notification::create([
+            'user_id' => $course->instructor_id,
+            'type' => 'course_approved',
+            'message' => 'Votre formation "' . $course->title . '" a été approuvée et est maintenant visible dans le catalogue.',
+            'has_sound' => true,
+        ]);
+
+        return $this->successResponse(['message' => 'Formation approuvée.']);
+    }
+
+    public function rejectCourse(Request $request, $id)
+    {
+        $course = Course::find($id);
+
+        if (!$course) {
+            return $this->errorResponse('Formation non trouvée.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        $course->update([
+            'status' => Course::STATUS_REJECTED,
+            'is_published' => false,
+            'rejection_reason' => $request->reason,
+        ]);
+
+        Notification::create([
+            'user_id' => $course->instructor_id,
+            'type' => 'course_rejected',
+            'message' => 'Votre formation "' . $course->title . '" a été refusée.',
+            'data' => json_encode(['reason' => $request->reason]),
+            'has_sound' => true,
+        ]);
+
+        return $this->successResponse(['message' => 'Formation refusée.']);
+    }
+
+    public function coursesByStatus(Request $request)
+    {
+        $status = $request->input('status', 'submitted');
+        $query = Course::with('instructor')->where('status', $status);
 
         $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
 

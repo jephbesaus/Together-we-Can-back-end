@@ -2,7 +2,7 @@
 
 return [
 
-    'currency' => env('PAYMENT_CURRENCY', 'FCFA'),
+    'currency' => env('PAYMENT_CURRENCY', 'CDF'),
 
     'methods' => [
         'orange_money' => ['label' => 'Orange Money', 'provider' => 'orange'],

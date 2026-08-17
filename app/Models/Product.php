@@ -43,7 +43,7 @@ class Product extends Model
     }
 
     public function getMainImageAttribute() { if ($this->images && is_array($this->images) && count($this->images) > 0) return $this->images[0]; return null; }
-    public function getFormattedPriceAttribute() { return number_format($this->price, 0, ',', ' ') . ' FCFA'; }
+    public function getFormattedPriceAttribute() { return number_format($this->price, 0, ',', ' ') . ' CDF'; }
     public function getIsOutOfStockAttribute() { return $this->stock_quantity !== null && $this->stock_quantity <= 0; }
     public function getAverageRatingAttribute() { return $this->reviews()->avg('rating') ?? 0; }
     public function getReviewsCountAttribute() { return $this->reviews()->count(); }

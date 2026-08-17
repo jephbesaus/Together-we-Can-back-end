@@ -18,17 +18,23 @@ use App\Http\Controllers\Api\AppReleaseController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\CampaignController;
 use App\Http\Controllers\Api\WebhookController;
+use App\Http\Controllers\Api\InstructorController;
+
+use App\Http\Controllers\Api\InfoController;
 
 Route::post('/webhooks/fusionpay', [WebhookController::class, 'fusionPay']);
+Route::post('/webhooks/chariow', [WebhookController::class, 'chariow']);
 
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
-Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
-Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp']);
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,1');
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
+Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp'])->middleware('throttle:5,1');
 
 Route::get('/app/version', [AppReleaseController::class, 'info']);
+Route::get('/support', [InfoController::class, 'support']);
+Route::get('/about', [InfoController::class, 'about']);
 
 Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
 
@@ -103,6 +109,22 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
     Route::get('/courses/my-courses', [CourseController::class, 'myCourses']);
     Route::post('/courses/{courseId}/lessons/{lessonId}/progress', [CourseController::class, 'updateProgress']);
     Route::post('/courses/{id}/review', [CourseController::class, 'addReview']);
+    Route::get('/courses/{id}/certificate', [CourseController::class, 'certificate']);
+
+    Route::prefix('instructor')->group(function () {
+        Route::get('/dashboard', [InstructorController::class, 'dashboard']);
+        Route::post('/courses', [InstructorController::class, 'store']);
+        Route::put('/courses/{id}', [InstructorController::class, 'update']);
+        Route::delete('/courses/{id}', [InstructorController::class, 'destroy']);
+        Route::post('/courses/{id}/sections', [InstructorController::class, 'addSection']);
+        Route::put('/courses/{id}/sections/{sectionId}', [InstructorController::class, 'updateSection']);
+        Route::delete('/courses/{id}/sections/{sectionId}', [InstructorController::class, 'deleteSection']);
+        Route::post('/courses/{id}/sections/{sectionId}/lessons', [InstructorController::class, 'addLesson']);
+        Route::put('/courses/{id}/lessons/{lessonId}', [InstructorController::class, 'updateLesson']);
+        Route::delete('/courses/{id}/lessons/{lessonId}', [InstructorController::class, 'deleteLesson']);
+        Route::get('/courses/{id}/students', [InstructorController::class, 'students']);
+        Route::post('/courses/{id}/submit', [InstructorController::class, 'submit']);
+    });
 
     Route::get('/boost/platforms', [BoostController::class, 'platforms']);
     Route::get('/boost/services/{platform}', [BoostController::class, 'services']);
@@ -170,6 +192,9 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
         Route::post('/courses', [AdminController::class, 'createCourse']);
         Route::put('/courses/{id}', [AdminController::class, 'updateCourse']);
         Route::delete('/courses/{id}', [AdminController::class, 'deleteCourse']);
+        Route::post('/courses/{id}/approve', [AdminController::class, 'approveCourse']);
+        Route::post('/courses/{id}/reject', [AdminController::class, 'rejectCourse']);
+        Route::get('/courses/by-status', [AdminController::class, 'coursesByStatus']);
         Route::get('/reports', [AdminController::class, 'reports']);
         Route::post('/reports/{id}/resolve', [AdminController::class, 'resolveReport']);
         Route::post('/announcements', [AnnouncementController::class, 'store']);

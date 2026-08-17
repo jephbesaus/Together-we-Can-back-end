@@ -173,7 +173,7 @@ class BoostController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:500',
-            'phone' => 'required|string',
+            'email' => 'required|email',
             'provider' => 'required|in:orange,mtn,vodacom,airtel,africell',
         ]);
 
@@ -181,7 +181,12 @@ class BoostController extends Controller
             return $this->errorResponse($validator->errors(), 422);
         }
 
-        $result = $this->paymentService->depositFusionPay(auth()->id(), $request->amount, $request->phone, $request->provider);
+        $result = $this->paymentService->depositChariow(
+            auth()->id(),
+            $request->amount,
+            $request->email,
+            $request->provider
+        );
 
         if (!$result['success']) {
             return $this->errorResponse($result['message'], 400);

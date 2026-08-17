@@ -8,12 +8,20 @@ use App\Models\CourseEnrollment;
 use App\Models\CourseReview;
 use App\Models\LessonProgress;
 use App\Models\Transaction;
+use App\Services\CertificateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class CourseController extends Controller
 {
     use \App\Traits\ApiResponseTrait;
+
+    protected $certificateService;
+
+    public function __construct(CertificateService $certificateService)
+    {
+        $this->certificateService = $certificateService;
+    }
 
     public function index(Request $request)
     {
@@ -35,13 +43,30 @@ class CourseController extends Controller
             $query->free();
         }
 
+        $sort = $request->input('sort', 'recent');
+        switch ($sort) {
+            case 'popular':
+                $query->orderBy('students_count', 'desc');
+                break;
+            case 'rating':
+                $query->orderBy('rating', 'desc');
+                break;
+            case 'price_asc':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_desc':
+                $query->orderBy('price', 'desc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc');
+        }
+
         $limit = $request->input('limit', 20);
         $page = $request->input('page', 1);
         $offset = ($page - 1) * $limit;
 
         $total = (clone $query)->count();
         $courses = $query->with('instructor')
-            ->orderBy('created_at', 'desc')
             ->skip($offset)
             ->take($limit)
             ->get();
@@ -71,7 +96,7 @@ class CourseController extends Controller
             ->find($id);
 
         if (!$course) {
-            return $this->errorResponse('Course not found.', 404);
+            return $this->errorResponse('Formation non trouvée.', 404);
         }
 
         return $this->successResponse(['course' => $course]);
@@ -82,20 +107,20 @@ class CourseController extends Controller
         $course = Course::published()->find($id);
 
         if (!$course) {
-            return $this->errorResponse('Course not found.', 404);
+            return $this->errorResponse('Formation non trouvée.', 404);
         }
 
         $userId = auth()->id();
 
         $existing = CourseEnrollment::where('course_id', $id)->where('user_id', $userId)->first();
         if ($existing) {
-            return $this->errorResponse('You are already enrolled in this course.', 400);
+            return $this->errorResponse('Vous êtes déjà inscrit à cette formation.', 400);
         }
 
         if (!$course->is_free) {
             $user = auth()->user();
             if ($user->boost_balance < $course->price) {
-                return $this->errorResponse('Insufficient balance.', 400);
+                return $this->errorResponse('Solde insuffisant.', 400);
             }
             $user->decrement('boost_balance', $course->price);
 
@@ -108,6 +133,7 @@ class CourseController extends Controller
                 'status' => 'completed',
                 'description' => 'Achat formation : ' . $course->title,
                 'completed_at' => now(),
+                'metadata' => json_encode(['course_id' => $course->id]),
             ]);
         }
 
@@ -122,7 +148,7 @@ class CourseController extends Controller
         $course->incrementStudents();
 
         return $this->successResponse([
-            'message' => 'Enrolled successfully.',
+            'message' => 'Inscription réussie.',
             'enrollment' => $enrollment,
         ], 201);
     }
@@ -153,7 +179,7 @@ class CourseController extends Controller
             ->first();
 
         if (!$enrollment) {
-            return $this->errorResponse('You are not enrolled in this course.', 403);
+            return $this->errorResponse('Vous n\'êtes pas inscrit à cette formation.', 403);
         }
 
         $progress = LessonProgress::updateProgress(auth()->id(), $lessonId, $request->position, $request->duration);
@@ -163,10 +189,19 @@ class CourseController extends Controller
             'last_accessed_at' => now(),
         ]);
 
+        $enrollment->refresh();
+
+        $certificate = null;
+        if ($enrollment->is_completed && $enrollment->progress >= 100) {
+            $certificate = $this->certificateService->generateCertificate($enrollment);
+        }
+
         return $this->successResponse([
-            'message' => 'Progress updated.',
+            'message' => 'Progression mise à jour.',
             'progress' => $progress,
-            'course_progress' => $enrollment->fresh()->progress,
+            'course_progress' => $enrollment->progress,
+            'is_completed' => $enrollment->is_completed,
+            'certificate' => $certificate,
         ]);
     }
 
@@ -175,7 +210,15 @@ class CourseController extends Controller
         $course = Course::find($id);
 
         if (!$course) {
-            return $this->errorResponse('Course not found.', 404);
+            return $this->errorResponse('Formation non trouvée.', 404);
+        }
+
+        $enrollment = CourseEnrollment::where('course_id', $id)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (!$enrollment) {
+            return $this->errorResponse('Vous devez être inscrit pour laisser un avis.', 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -195,8 +238,33 @@ class CourseController extends Controller
         $course->updateRating();
 
         return $this->successResponse([
-            'message' => 'Review added successfully.',
+            'message' => 'Avis ajouté.',
             'review' => $review->load('user'),
         ], 201);
+    }
+
+    public function certificate($id)
+    {
+        $enrollment = CourseEnrollment::where('course_id', $id)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (!$enrollment) {
+            return $this->errorResponse('Inscription non trouvée.', 404);
+        }
+
+        if ($enrollment->progress < 100) {
+            return $this->errorResponse('Vous devez terminer la formation pour obtenir le certificat.', 400);
+        }
+
+        $certificate = $this->certificateService->getCertificate($enrollment);
+
+        if (!$certificate) {
+            return $this->errorResponse('Erreur lors de la génération du certificat.', 500);
+        }
+
+        return $this->successResponse([
+            'certificate' => $certificate,
+        ]);
     }
 }

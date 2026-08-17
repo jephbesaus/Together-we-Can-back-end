@@ -92,7 +92,7 @@ class ChariowService
         Notification::create([
             'user_id' => $user->id,
             'type' => 'payment',
-            'message' => 'Votre paiement de ' . number_format($amount, 0) . ' FCFA a été confirmé.',
+            'message' => 'Votre paiement de ' . number_format($amount, 0) . ' CDF a été confirmé.',
             'data' => json_encode(['transaction_id' => $transaction->id]),
             'has_sound' => true,
         ]);
