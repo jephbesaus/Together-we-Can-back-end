@@ -23,8 +23,6 @@ RUN mkdir -p storage/framework/sessions \
     bootstrap/cache \
     database
 
-RUN composer dump-autoload --optimize --no-dev
-
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 COPY docker/apache-laravel.conf /etc/apache2/conf-available/laravel.conf
