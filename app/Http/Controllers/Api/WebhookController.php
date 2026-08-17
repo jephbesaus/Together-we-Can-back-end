@@ -18,6 +18,10 @@ class WebhookController extends Controller
 
     public function chariow(Request $request)
     {
+        if ($request->isMethod('get')) {
+            return response()->json(['status' => 'ok', 'message' => 'Chariow Pulse endpoint active']);
+        }
+
         $rawBody = $request->getContent();
         $signature = $request->header('x-chariow-signature', '');
 
