@@ -14,7 +14,7 @@ fi
 # Construit le .env à partir des variables d'environnement Render
 echo "[entrypoint] Écriture du fichier .env depuis les variables d'environnement..."
 cat > .env <<EOF
-APP_NAME=${APP_NAME:-Together We Can}
+APP_NAME="${APP_NAME:-Together We Can}"
 APP_ENV=${APP_ENV:-production}
 APP_DEBUG=${APP_DEBUG:-false}
 APP_URL=${APP_URL:-https://together-we-can-back-end-pqel.onrender.com}
@@ -40,7 +40,7 @@ MAIL_USERNAME=${MAIL_USERNAME:-jephbesaus07@gmail.com}
 MAIL_PASSWORD=${MAIL_PASSWORD:-}
 MAIL_ENCRYPTION=${MAIL_ENCRYPTION:-tls}
 MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-jephbesaus07@gmail.com}
-MAIL_FROM_NAME=${MAIL_FROM_NAME:-Together We Can}
+MAIL_FROM_NAME="${MAIL_FROM_NAME:-Together We Can}"
 
 CHARIOW_API_KEY=${CHARIOW_API_KEY:-}
 CHARIOW_PAYMENT_URL=${CHARIOW_PAYMENT_URL:-https://epazzsvw.mychariow.store/prd_dd7c35ic}
@@ -70,7 +70,7 @@ FIREBASE_CREDENTIALS=${FIREBASE_CREDENTIALS:-storage/app/firebase/service-accoun
 
 APP_RELEASE_VERSION=${APP_RELEASE_VERSION:-1.0.0}
 APP_RELEASE_APK=${APP_RELEASE_APK:-together-we-can.apk}
-APP_RELEASE_NOTES=${APP_RELEASE_NOTES:-Première version de Together We Can.}
+APP_RELEASE_NOTES="${APP_RELEASE_NOTES:-Première version de Together We Can.}"
 APP_MIN_ANDROID_VERSION=${APP_MIN_ANDROID_VERSION:-5.0}
 APP_RELEASE_EXTERNAL_URL=${APP_RELEASE_EXTERNAL_URL:-}
 EOF
