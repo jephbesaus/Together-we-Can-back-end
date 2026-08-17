@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app/constants.dart';
 import '../core/services/api_service.dart';
 import '../widgets/app_loader.dart';
@@ -142,7 +143,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${_balance.toStringAsFixed(0)} FCFA',
+                          '${_balance.toStringAsFixed(0)} CDF',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -423,7 +424,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
 
   void _showDepositDialog() {
     final amountController = TextEditingController();
-    final phoneController = TextEditingController();
+    final emailController = TextEditingController();
     String selectedProvider = 'orange';
 
     Get.dialog(
@@ -438,18 +439,18 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
                   controller: amountController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Montant (FCFA)',
+                    labelText: 'Montant (CDF)',
                     hintText: 'Minimum: 500',
-                    prefixText: 'FCFA ',
+                    prefixText: 'CDF ',
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'Numéro de téléphone',
-                    hintText: 'Ex: 650000000',
+                    labelText: 'Email',
+                    hintText: 'Votre email pour le paiement',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -478,14 +479,14 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
             ElevatedButton(
               onPressed: () async {
                 final amount = double.tryParse(amountController.text);
-                final phone = phoneController.text.trim();
+                final email = emailController.text.trim();
 
                 if (amount == null || amount < 500) {
-                  Get.snackbar('Erreur', 'Montant minimum: 500 FCFA');
+                  Get.snackbar('Erreur', 'Montant minimum: 500 CDF');
                   return;
                 }
-                if (phone.isEmpty) {
-                  Get.snackbar('Erreur', 'Numéro de téléphone requis.');
+                if (email.isEmpty || !email.contains('@')) {
+                  Get.snackbar('Erreur', 'Email valide requis.');
                   return;
                 }
 
@@ -494,12 +495,18 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
                 try {
                   final response = await _api.post('/boost/deposit', data: {
                     'amount': amount,
-                    'phone': phone,
+                    'email': email,
                     'provider': selectedProvider,
                   });
 
                   if (response['success']) {
-                    Get.snackbar('Succès', 'Demande de dépôt envoyée.');
+                    final paymentUrl = response['data']['payment_url'];
+                    if (paymentUrl != null) {
+                      Get.snackbar('Paiement', 'Redirection vers Chariow...');
+                      launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
+                    } else {
+                      Get.snackbar('Succès', 'Demande de dépôt envoyée.');
+                    }
                     _loadData();
                   } else {
                     Get.snackbar(

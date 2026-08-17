@@ -15,6 +15,7 @@ class PostWidget extends StatelessWidget {
   final VoidCallback onComment;
   final VoidCallback onShare;
   final VoidCallback onReport;
+  final VoidCallback? onDelete;
 
   const PostWidget({
     super.key,
@@ -23,6 +24,7 @@ class PostWidget extends StatelessWidget {
     required this.onComment,
     required this.onShare,
     required this.onReport,
+    this.onDelete,
   });
 
   @override
@@ -292,6 +294,15 @@ class PostWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (onDelete != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  onDelete!();
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.flag),
               title: const Text('Signaler'),

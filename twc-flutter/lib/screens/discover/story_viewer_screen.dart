@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:get/get.dart';
 import 'dart:async';
 import '../../core/models/post.dart';
 import '../../core/services/api_service.dart';
-import 'package:get/get.dart';
+import '../../core/services/auth_service.dart';
 
 class StoryViewerScreen extends StatefulWidget {
   final List<Post> stories;
@@ -66,6 +67,30 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       setState(() => _currentIndex--);
       _trackStoryView(widget.stories[_currentIndex].id);
       _progressController.forward(from: 0);
+    }
+  }
+
+  void _deleteStory(Post story) async {
+    final confirm = await Get.dialog(
+      AlertDialog(
+        title: const Text('Supprimer la story'),
+        content: const Text('Voulez-vous vraiment supprimer cette story ?'),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await _api.delete('/posts/${story.id}');
+      Get.back();
+      Get.snackbar('Succès', 'Story supprimée.');
+    } catch (e) {
+      Get.snackbar('Erreur', 'Impossible de supprimer.');
     }
   }
 
@@ -181,6 +206,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                         ),
+                        if (story.user.id.toString() == Get.find<AuthService>().currentUserId)
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.white),
+                            onPressed: () => _deleteStory(story),
+                          ),
                         IconButton(
                           icon: const Icon(Icons.close, color: Colors.white),
                           onPressed: () => Navigator.of(context).pop(),

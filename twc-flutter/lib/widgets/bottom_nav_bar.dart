@@ -8,6 +8,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/discover/create_post_screen.dart';
 import '../screens/discover/create_story_screen.dart';
 import '../core/controllers/notification_controller.dart';
+import '../core/services/api_service.dart';
 
 class BottomNavBar extends StatefulWidget {
   const BottomNavBar({super.key});
@@ -18,6 +19,8 @@ class BottomNavBar extends StatefulWidget {
 
 class _BottomNavBarState extends State<BottomNavBar> {
   int _selectedIndex = 0;
+  int _unreadMessages = 0;
+  int _unreadNotifications = 0;
 
   final List<Widget> _screens = [
     const DiscoverScreen(),
@@ -27,6 +30,26 @@ class _BottomNavBarState extends State<BottomNavBar> {
     const ProfileScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadBadges();
+  }
+
+  void _loadBadges() async {
+    try {
+      final api = Get.find<ApiService>();
+      final messages = await api.get('/messages/unread-count');
+      final notifs = await api.get('/notifications/unread-count');
+      if (mounted) {
+        setState(() {
+          _unreadMessages = messages['data']['unread_count'] ?? 0;
+          _unreadNotifications = notifs['data']['unread_count'] ?? 0;
+        });
+      }
+    } catch (e) {}
+  }
+
   void _onItemTapped(int index) {
     if (index == 2) {
       _showCreateMenu();
@@ -35,6 +58,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
     setState(() {
       _selectedIndex = index;
     });
+    if (index == 0) _loadBadges();
   }
 
   void _showCreateMenu() {
@@ -106,9 +130,19 @@ class _BottomNavBarState extends State<BottomNavBar> {
             activeIcon: Icon(Icons.home),
             label: 'Découvrir',
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.message_outlined),
-            activeIcon: Icon(Icons.message),
+          BottomNavigationBarItem(
+            icon: Badge(
+              isLabelVisible: _unreadMessages > 0,
+              label: Text('$_unreadMessages', style: const TextStyle(fontSize: 10, color: Colors.white)),
+              backgroundColor: Colors.red,
+              child: const Icon(Icons.message_outlined),
+            ),
+            activeIcon: Badge(
+              isLabelVisible: _unreadMessages > 0,
+              label: Text('$_unreadMessages', style: const TextStyle(fontSize: 10, color: Colors.white)),
+              backgroundColor: Colors.red,
+              child: const Icon(Icons.message),
+            ),
             label: 'Messages',
           ),
           BottomNavigationBarItem(

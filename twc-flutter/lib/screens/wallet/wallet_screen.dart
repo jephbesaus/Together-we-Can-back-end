@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
 
@@ -103,7 +104,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${NumberFormat('#,##0', 'fr_FR').format(_balance)} FCFA',
+                          '${NumberFormat('#,##0', 'fr_FR').format(_balance)} CDF',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 32,
@@ -180,7 +181,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '${NumberFormat('#,##0', 'fr_FR').format(_savings)} FCFA',
+                                  '${NumberFormat('#,##0', 'fr_FR').format(_savings)} CDF',
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -290,7 +291,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   void _showDepositDialog() {
     final amountController = TextEditingController();
-    final phoneController = TextEditingController();
+    final emailController = TextEditingController();
     String selectedProvider = 'orange';
 
     Get.dialog(
@@ -305,17 +306,17 @@ class _WalletScreenState extends State<WalletScreen> {
                   controller: amountController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Montant (FCFA)',
+                    labelText: 'Montant (CDF)',
                     hintText: 'Minimum: 500',
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'Numéro de téléphone',
-                    hintText: 'Ex: 650000000',
+                    labelText: 'Email',
+                    hintText: 'Votre email pour le paiement',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -344,14 +345,14 @@ class _WalletScreenState extends State<WalletScreen> {
             ElevatedButton(
               onPressed: () async {
                 final amount = double.tryParse(amountController.text);
-                final phone = phoneController.text.trim();
+                final email = emailController.text.trim();
 
                 if (amount == null || amount < 500) {
-                  Get.snackbar('Erreur', 'Montant minimum: 500 FCFA');
+                  Get.snackbar('Erreur', 'Montant minimum: 500 CDF');
                   return;
                 }
-                if (phone.isEmpty) {
-                  Get.snackbar('Erreur', 'Numéro de téléphone requis.');
+                if (email.isEmpty || !email.contains('@')) {
+                  Get.snackbar('Erreur', 'Email valide requis.');
                   return;
                 }
 
@@ -360,12 +361,18 @@ class _WalletScreenState extends State<WalletScreen> {
                 try {
                   final response = await _api.post('/transactions/deposit', data: {
                     'amount': amount,
-                    'phone': phone,
+                    'email': email,
                     'provider': selectedProvider,
                   });
 
                   if (response['success']) {
-                    Get.snackbar('Succès', 'Demande de dépôt envoyée.');
+                    final paymentUrl = response['data']['payment_url'];
+                    if (paymentUrl != null) {
+                      Get.snackbar('Paiement', 'Redirection vers Chariow...');
+                      launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
+                    } else {
+                      Get.snackbar('Succès', 'Demande de dépôt envoyée.');
+                    }
                     _loadData();
                   } else {
                     Get.snackbar(
@@ -402,7 +409,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   controller: amountController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Montant (FCFA)',
+                    labelText: 'Montant (CDF)',
                     hintText: 'Minimum: 1000',
                   ),
                 ),
@@ -444,7 +451,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 final phone = phoneController.text.trim();
 
                 if (amount == null || amount < 1000) {
-                  Get.snackbar('Erreur', 'Montant minimum: 1000 FCFA');
+                  Get.snackbar('Erreur', 'Montant minimum: 1000 CDF');
                   return;
                 }
                 if (phone.isEmpty) {
