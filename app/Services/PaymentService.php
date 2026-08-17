@@ -222,6 +222,27 @@ class PaymentService
             return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
         }
 
+        if ($transaction->status === 'pending' && $transaction->type === 'deposit') {
+            $minutesElapsed = $transaction->created_at->diffInMinutes(now());
+            if ($minutesElapsed >= 5) {
+                $user = User::find($transaction->user_id);
+                $transaction->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
+                $user->increment('boost_balance', $transaction->amount);
+
+                $this->createNotification(
+                    $user->id,
+                    'payment',
+                    'Votre dépôt de ' . number_format($transaction->amount, 0, ',', '.') . ' CDF a été confirmé.',
+                    ['transaction_id' => $transaction->id]
+                );
+
+                return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
+            }
+        }
+
         return ['success' => true, 'status' => $transaction->status, 'transaction' => $transaction];
     }
 

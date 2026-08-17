@@ -507,9 +507,24 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
 
                   if (response['success']) {
                     final paymentUrl = response['data']['payment_url'];
+                    final txId = response['data']['transaction']?['id'];
                     if (paymentUrl != null) {
                       Get.snackbar('Paiement', 'Redirection vers Chariow...');
                       launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
+                      if (txId != null) {
+                        Future.delayed(const Duration(seconds: 10), () async {
+                          try {
+                            await _api.get('/transactions/$txId/check-status');
+                            _loadData();
+                          } catch (_) {}
+                        });
+                        Future.delayed(const Duration(seconds: 30), () async {
+                          try {
+                            await _api.get('/transactions/$txId/check-status');
+                            _loadData();
+                          } catch (_) {}
+                        });
+                      }
                     } else {
                       Get.snackbar('Succès', 'Demande de dépôt envoyée.');
                     }
