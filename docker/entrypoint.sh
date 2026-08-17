@@ -84,6 +84,9 @@ if [ -z "${APP_KEY:-}" ] && ! grep -q '^APP_KEY=.\+' .env; then
 fi
 
 php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan cache:clear
 php artisan migrate --force
 php artisan storage:link || true
 
