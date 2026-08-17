@@ -16,9 +16,9 @@ class AuthService extends GetxService {
       'email': email,
       'password': password,
     });
-    if (response['success'] && response['data']['token'] != null) {
-      await _api.setToken(response['data']['token']);
-      final userId = response['data']['user']?['id'];
+    if (response['success'] && response['data']?['token'] != null) {
+      await _api.setToken(response['data']!['token']);
+      final userId = response['data']?['user']?['id'];
       if (userId != null) {
         await _api.setCurrentUserId(userId.toString());
       }
@@ -28,9 +28,9 @@ class AuthService extends GetxService {
 
   Future<Map<String, dynamic>> register(Map<String, dynamic> data) async {
     final response = await _api.post('/auth/register', data: data);
-    if (response['success'] && response['data']['token'] != null) {
-      await _api.setToken(response['data']['token']);
-      final userId = response['data']['user']?['id'];
+    if (response['success'] && response['data']?['token'] != null) {
+      await _api.setToken(response['data']!['token']);
+      final userId = response['data']?['user']?['id'];
       if (userId != null) {
         await _api.setCurrentUserId(userId.toString());
       }

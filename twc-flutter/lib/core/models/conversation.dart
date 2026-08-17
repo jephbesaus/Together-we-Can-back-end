@@ -30,12 +30,10 @@ class Conversation {
     lastMessage: json['last_message'] != null
         ? Message.fromJson(json['last_message'])
         : null,
-    lastMessageAt: json['last_message_at'] != null
-        ? DateTime.parse(json['last_message_at'])
-        : null,
+    lastMessageAt: DateTime.tryParse(json['last_message_at'] ?? ''),
     unreadCount: json['unread_count'] ?? 0,
     isArchived: json['is_archived'] ?? false,
     isBlocked: json['is_blocked'] ?? false,
-    createdAt: DateTime.parse(json['created_at']),
+    createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
   );
 }

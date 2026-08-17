@@ -29,7 +29,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
       final response = await _api.get('/transactions/balance');
       if (response['success']) {
         setState(() {
-          _savings = (response['data']['savings_balance'] ?? 0).toDouble();
+          _savings = double.tryParse('${response['data']['savings_balance'] ?? 0}') ?? 0;
         });
       }
     } catch (e) {

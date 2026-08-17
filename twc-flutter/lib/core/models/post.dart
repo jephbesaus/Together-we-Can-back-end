@@ -49,7 +49,7 @@ class Post {
     commentsCount: json['comments_count'] ?? 0,
     sharesCount: json['shares_count'] ?? 0,
     viewsCount: json['views_count'] ?? 0,
-    createdAt: DateTime.parse(json['created_at']),
+    createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     isLikedByUser: json['is_liked_by_user'] ?? false,
   );
 }

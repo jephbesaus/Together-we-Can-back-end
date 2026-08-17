@@ -35,14 +35,14 @@ class Product {
     sellerId: json['seller_id'].toString(),
     name: json['name'],
     description: json['description'],
-    price: (json['price'] ?? 0).toDouble(),
+    price: double.tryParse('${json['price'] ?? 0}') ?? 0,
     category: json['category'],
     images: json['images'] != null ? List<String>.from(json['images']) : null,
     mainImage: json['main_image'],
-    averageRating: (json['average_rating'] ?? 0).toDouble(),
+    averageRating: double.tryParse('${json['average_rating'] ?? 0}') ?? 0,
     reviewsCount: json['reviews_count'] ?? 0,
     isFavorited: json['is_favorited'],
-    createdAt: DateTime.parse(json['created_at']),
+    createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     formattedPrice: json['formatted_price'] ?? '',
   );
 }

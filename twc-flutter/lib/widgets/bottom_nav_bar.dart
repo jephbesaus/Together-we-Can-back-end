@@ -43,8 +43,8 @@ class _BottomNavBarState extends State<BottomNavBar> {
       final notifs = await api.get('/notifications/unread-count');
       if (mounted) {
         setState(() {
-          _unreadMessages = messages['data']['unread_count'] ?? 0;
-          _unreadNotifications = notifs['data']['unread_count'] ?? 0;
+          _unreadMessages = messages['data']?['unread_count'] ?? 0;
+          _unreadNotifications = notifs['data']?['unread_count'] ?? 0;
         });
       }
     } catch (e) {}

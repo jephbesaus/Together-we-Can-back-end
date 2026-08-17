@@ -11,7 +11,10 @@ class ApiService {
       baseUrl: AppConstants.apiBaseUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
     ));
 
     _dio.interceptors.add(InterceptorsWrapper(
@@ -29,7 +32,12 @@ class ApiService {
       },
     ));
 
-    _loadToken();
+    _initToken();
+  }
+
+  Future<void> _initToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString(AppConstants.tokenKey);
   }
 
   Future<void> _loadToken() async {

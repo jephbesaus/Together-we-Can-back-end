@@ -15,7 +15,7 @@ class NotificationController extends GetxController {
     try {
       final response = await _api.get('/notifications/unread-count');
       if (response['success']) {
-        unreadCount.value = response['data']['unread_count'] ?? 0;
+        unreadCount.value = response['data']?['unread_count'] ?? 0;
       }
     } catch (e) {
       print('Error loading unread count: $e');

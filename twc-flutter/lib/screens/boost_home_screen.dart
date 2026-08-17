@@ -41,24 +41,24 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
 
       if (platforms['success']) {
         setState(() {
-          _platforms = List<Map<String, dynamic>>.from(
-            platforms['data']['platforms'] ?? [],
-          );
+          _platforms = (platforms['data']?['platforms'] is List)
+            ? List<Map<String, dynamic>>.from(platforms['data']!['platforms'])
+            : [];
         });
       }
 
       if (balance['success']) {
         setState(() {
           // Le backend renvoie 'boost_balance', pas 'wallet_balance'
-          _balance = (balance['data']['boost_balance'] ?? 0).toDouble();
+          _balance = double.tryParse('${balance['data']['boost_balance'] ?? 0}') ?? 0;
         });
       }
 
       if (orders['success']) {
         setState(() {
-          _recentOrders = List<Map<String, dynamic>>.from(
-            orders['data']['orders'] ?? [],
-          );
+          _recentOrders = (orders['data']?['orders'] is List)
+              ? List<Map<String, dynamic>>.from(orders['data']!['orders'])
+              : [];
           if (_recentOrders.length > 5) {
             _recentOrders = _recentOrders.sublist(0, 5);
           }
@@ -393,7 +393,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(
-        '${order['quantity']} • ${order['formatted_price']}',
+        '${order['quantity']} • ${order['price'] ?? order['formatted_price'] ?? ''} CDF',
         style: TextStyle(color: Colors.grey[600], fontSize: 12),
       ),
       trailing: Column(
@@ -410,10 +410,16 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
           ),
           Text(
             order['created_at'] != null
-                ? DateTime.parse(order['created_at'])
-                    .toLocal()
-                    .toString()
-                    .substring(0, 16)
+                ? (() {
+                    try {
+                      return DateTime.parse(order['created_at'])
+                          .toLocal()
+                          .toString()
+                          .substring(0, 16);
+                    } catch (_) {
+                      return '';
+                    }
+                  })()
                 : '',
             style: TextStyle(color: Colors.grey[500], fontSize: 10),
           ),

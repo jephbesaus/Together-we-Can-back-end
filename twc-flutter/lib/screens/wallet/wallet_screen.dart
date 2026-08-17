@@ -36,8 +36,8 @@ class _WalletScreenState extends State<WalletScreen> {
       if (balance['success']) {
         setState(() {
           // Le backend renvoie 'boost_balance' / 'savings_balance'
-          _balance = (balance['data']['boost_balance'] ?? 0).toDouble();
-          _savings = (balance['data']['savings_balance'] ?? 0).toDouble();
+          _balance = double.tryParse('${balance['data']['boost_balance'] ?? 0}') ?? 0;
+          _savings = double.tryParse('${balance['data']['savings_balance'] ?? 0}') ?? 0;
         });
       }
 

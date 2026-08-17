@@ -45,8 +45,8 @@ class Message {
     mediaUrl: json['media_url'],
     mediaType: json['media_type'],
     isRead: json['is_read'] ?? false,
-    readAt: json['read_at'] != null ? DateTime.parse(json['read_at']) : null,
-    createdAt: DateTime.parse(json['created_at']),
+    readAt: DateTime.tryParse(json['read_at'] ?? ''),
+    createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     timeAgo: json['time_ago'] ?? '',
     isSentByUser: json['is_sent_by_user'] ?? false,
   );
