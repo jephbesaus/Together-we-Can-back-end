@@ -1,4 +1,4 @@
-FROM php:8.5-apache
+FROM php:8.5-apache AS base
 
 RUN apt-get update && apt-get install -y \
     git curl libpng-dev libonig-dev libxml2-dev zip unzip libpq-dev \
@@ -12,12 +12,19 @@ RUN sed -i 's|/var/www/|/var/www/html/public/|g' /etc/apache2/apache2.conf
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+ENV COMPOSER_PROCESS_TIMEOUT=600
+ENV COMPOSER_HTTP_MAX_CONNECTIONS=4
+
 WORKDIR /var/www/html
 
-# Handikana ny rakitra rehetra
+COPY composer.json composer.lock ./
+
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-autoloader --prefer-dist || \
+    (sleep 10 && composer install --no-dev --optimize-autoloader --no-scripts --no-autoloader --prefer-dist) || \
+    (sleep 30 && composer install --no-dev --optimize-autoloader --prefer-dist)
+
 COPY . .
 
-# Mamorona ny lahatahiry Laravel ilaina raha sanatria ka tsy ao amin'ny Git/Docker Context
 RUN mkdir -p storage/framework/sessions \
     storage/framework/views \
     storage/framework/cache \
@@ -25,11 +32,9 @@ RUN mkdir -p storage/framework/sessions \
     bootstrap/cache \
     database
 
-# Amboarina ny fahazoan-dàlana (permissions) mandritra ny build
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN composer dump-autoload --optimize --no-dev
 
-# Alefaso ny composer install
-RUN composer install --no-dev --optimize-autoloader
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 COPY docker/apache-laravel.conf /etc/apache2/conf-available/laravel.conf
 RUN a2enconf laravel
