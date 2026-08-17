@@ -8,6 +8,7 @@ use App\Models\Like;
 use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Follow;
+use App\Models\StoryView;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -69,8 +70,15 @@ class PostController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->groupBy('user_id')
-            ->map(function ($items) {
-                return $items->take(5);
+            ->map(function ($items) use ($userId) {
+                return $items->take(5)->map(function ($story) use ($userId) {
+                    $story->viewers_count = StoryView::where('story_id', $story->id)->count();
+                    $story->is_viewed_by_user = StoryView::where('story_id', $story->id)
+                        ->where('user_id', $userId)->exists();
+                    $story->is_liked_by_user = Like::where('post_id', $story->id)
+                        ->where('user_id', $userId)->whereNull('comment_id')->exists();
+                    return $story;
+                });
             })
             ->flatten()
             ->values();
@@ -323,6 +331,49 @@ class PostController extends Controller
         return $this->successResponse([
             'posts' => $posts,
             'count' => $posts->count(),
+        ]);
+    }
+
+    public function viewStory($id)
+    {
+        $story = Post::where('is_story', true)->find($id);
+
+        if (!$story) {
+            return $this->errorResponse('Story not found.', 404);
+        }
+
+        $userId = auth()->id();
+
+        StoryView::updateOrCreate(
+            ['story_id' => $id, 'user_id' => $userId],
+            ['viewed_at' => now()]
+        );
+
+        $story->incrementViews();
+
+        return $this->successResponse([
+            'viewed' => true,
+            'viewers_count' => StoryView::where('story_id', $id)->count(),
+        ]);
+    }
+
+    public function storyLikers($id)
+    {
+        $story = Post::where('is_story', true)->find($id);
+
+        if (!$story) {
+            return $this->errorResponse('Story not found.', 404);
+        }
+
+        $likers = Like::where('post_id', $id)
+            ->whereNull('comment_id')
+            ->with('user:id,name,profile_photo_url')
+            ->get()
+            ->pluck('user');
+
+        return $this->successResponse([
+            'likers' => $likers,
+            'count' => $likers->count(),
         ]);
     }
 

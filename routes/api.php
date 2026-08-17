@@ -53,6 +53,8 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
 
     Route::get('/posts/feed', [PostController::class, 'feed']);
     Route::get('/posts/stories', [PostController::class, 'stories']);
+    Route::post('/posts/stories/{id}/view', [PostController::class, 'viewStory']);
+    Route::get('/posts/stories/{id}/likers', [PostController::class, 'storyLikers']);
     Route::get('/posts/search', [PostController::class, 'search']);
     Route::post('/posts', [PostController::class, 'store']);
     Route::get('/posts/{id}', [PostController::class, 'show']);
