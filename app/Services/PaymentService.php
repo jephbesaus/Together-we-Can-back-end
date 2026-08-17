@@ -35,8 +35,8 @@ class PaymentService
         ]);
 
         try {
-            $storeUrl = config('chariow.store_url', 'https://epazzsvw.mychariow.store');
-            $depositProductId = config('chariow.deposit_product_id', 'prd_dd7c35ic');
+            $storeUrl = config('chariow.store_url') ?: 'https://epazzsvw.mychariow.store';
+            $depositProductId = config('chariow.deposit_product_id') ?: 'prd_dd7c35ic';
             $apiKey = config('chariow.api_key');
 
             if ($apiKey) {
@@ -107,7 +107,9 @@ class PaymentService
             Log::warning('Chariow API checkout failed, falling back to store redirect: ' . $e->getMessage());
         }
 
-        $paymentUrl = $storeUrl . '/' . $depositProductId;
+        $storeUrl = config('chariow.store_url') ?: 'https://epazzsvw.mychariow.store';
+        $depositProductId = config('chariow.deposit_product_id') ?: 'prd_dd7c35ic';
+        $paymentUrl = rtrim($storeUrl, '/') . '/' . $depositProductId;
 
         return [
             'success' => true,
