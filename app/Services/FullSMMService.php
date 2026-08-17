@@ -17,17 +17,13 @@ class FullSMMService
         $this->apiKey = config('fullsmm.api_key');
     }
 
-    private function request($action, $params = [], $method = 'POST')
+    private function request($action, $params = [])
     {
         $params['key'] = $this->apiKey;
         $params['action'] = $action;
 
         try {
-            if ($method === 'GET') {
-                $response = Http::timeout(30)->get($this->apiUrl, $params);
-            } else {
-                $response = Http::timeout(30)->asForm()->post($this->apiUrl, $params);
-            }
+            $response = Http::timeout(30)->asForm()->post($this->apiUrl, $params);
 
             $data = $response->json();
 
@@ -49,7 +45,7 @@ class FullSMMService
 
     public function getBalance()
     {
-        $result = $this->request('balance', [], 'GET');
+        $result = $this->request('balance');
         if ($result['success']) return $result['data'];
         return null;
     }
@@ -60,7 +56,7 @@ class FullSMMService
         $services = Cache::get($cacheKey);
         if ($services) return $services;
 
-        $result = $this->request('services', [], 'GET');
+        $result = $this->request('services');
         if ($result['success'] && is_array($result['data'])) {
             Cache::put($cacheKey, $result['data'], 3600);
             return $result['data'];
