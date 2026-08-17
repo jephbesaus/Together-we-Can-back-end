@@ -12,16 +12,7 @@ RUN sed -i 's|/var/www/|/var/www/html/public/|g' /etc/apache2/apache2.conf
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-ENV COMPOSER_PROCESS_TIMEOUT=600
-ENV COMPOSER_HTTP_MAX_CONNECTIONS=4
-
 WORKDIR /var/www/html
-
-COPY composer.json composer.lock ./
-
-RUN composer install --no-dev --optimize-autoloader --no-scripts --no-autoloader --prefer-dist || \
-    (sleep 10 && composer install --no-dev --optimize-autoloader --no-scripts --no-autoloader --prefer-dist) || \
-    (sleep 30 && composer install --no-dev --optimize-autoloader --prefer-dist)
 
 COPY . .
 
