@@ -50,19 +50,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
+    final themeController = Get.find<ThemeController>();
+    final localeController = Get.find<LocaleController>();
+
+    return Obx(() => GetMaterialApp(
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeController.themeMode.value,
       debugShowCheckedModeBanner: false,
       initialRoute: '/splash',
       getPages: AppRoutes.routes,
       defaultTransition: Transition.fadeIn,
       translations: AppTranslations(),
-      locale: const Locale('fr', 'FR'),
+      locale: localeController.locale.value,
       fallbackLocale: const Locale('fr', 'FR'),
-    );
+    ));
   }
 }
 

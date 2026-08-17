@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 import '../../core/models/post.dart';
+import '../../core/services/api_service.dart';
+import 'package:get/get.dart';
 
 class StoryViewerScreen extends StatefulWidget {
   final List<Post> stories;
@@ -16,6 +18,8 @@ class StoryViewerScreen extends StatefulWidget {
 class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTickerProviderStateMixin {
   late int _currentIndex;
   late AnimationController _progressController;
+  final ApiService _api = Get.find<ApiService>();
+  final Set<int> _viewedStories = {};
 
   @override
   void initState() {
@@ -27,6 +31,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     )..addStatusListener((status) {
         if (status == AnimationStatus.completed) _next();
       });
+    _trackStoryView(widget.stories[_currentIndex].id);
     _progressController.forward();
   }
 
@@ -36,9 +41,20 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     super.dispose();
   }
 
+  void _trackStoryView(int storyId) async {
+    if (_viewedStories.contains(storyId)) return;
+    _viewedStories.add(storyId);
+    try {
+      await _api.post('/posts/stories/$storyId/view');
+    } catch (e) {
+      // Silent fail - view tracking is non-critical
+    }
+  }
+
   void _next() {
     if (_currentIndex < widget.stories.length - 1) {
       setState(() => _currentIndex++);
+      _trackStoryView(widget.stories[_currentIndex].id);
       _progressController.forward(from: 0);
     } else {
       Navigator.of(context).pop();
@@ -48,6 +64,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   void _previous() {
     if (_currentIndex > 0) {
       setState(() => _currentIndex--);
+      _trackStoryView(widget.stories[_currentIndex].id);
       _progressController.forward(from: 0);
     }
   }

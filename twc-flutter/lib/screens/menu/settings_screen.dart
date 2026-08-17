@@ -48,19 +48,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _downloadApp() async {
-    if (_appVersionInfo == null) {
-      await _checkAppVersion();
-    }
-
-    final downloadUrl = _appVersionInfo?['download_url'];
-
-    if (downloadUrl == null) {
-      Get.snackbar(
-        'Indisponible',
-        'Le fichier APK n\'est pas encore disponible sur le serveur.',
-      );
-      return;
-    }
+    final apiBaseUrl = AppConstants.apiBaseUrl;
+    final baseUrl = apiBaseUrl.replaceAll('/api', '');
+    final downloadUrl = '$baseUrl/download';
 
     final uri = Uri.parse(downloadUrl);
     if (await canLaunchUrl(uri)) {
