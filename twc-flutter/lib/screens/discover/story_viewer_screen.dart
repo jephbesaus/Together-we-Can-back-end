@@ -19,7 +19,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   late int _currentIndex;
   late AnimationController _progressController;
   final ApiService _api = Get.find<ApiService>();
-  final Set<int> _viewedStories = {};
+  final Set<String> _viewedStories = {};
 
   @override
   void initState() {
@@ -41,7 +41,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     super.dispose();
   }
 
-  void _trackStoryView(int storyId) async {
+  void _trackStoryView(String storyId) async {
     if (_viewedStories.contains(storyId)) return;
     _viewedStories.add(storyId);
     try {
