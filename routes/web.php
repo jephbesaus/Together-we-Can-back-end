@@ -20,9 +20,13 @@ Route::get('/download', function () {
         return redirect($externalUrl);
     }
 
-    $path = public_path('downloads/' . config('app_release.apk_filename'));
+    $filename = config('app_release.apk_filename');
+    $path = public_path('downloads/' . $filename);
+
     if (file_exists($path)) {
-        return redirect('/downloads/' . config('app_release.apk_filename'));
+        return response()->download($path, $filename, [
+            'Content-Type' => 'application/vnd.android.package-archive',
+        ]);
     }
 
     return response('<html><body style="background:#0B0B0B;color:#fff;font-family:sans-serif;text-align:center;padding:60px 20px;">'

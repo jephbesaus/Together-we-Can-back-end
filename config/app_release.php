@@ -10,13 +10,8 @@ return [
 
     'min_android_version' => env('APP_MIN_ANDROID_VERSION', '5.0'),
 
-    // Si renseigné (Google Drive, GitHub Releases, MediaFire...), cette URL est
-    // utilisée en priorité pour le téléchargement — le disque de Render est
-    // éphémère et ne conserve pas les fichiers uploadés entre les redéploiements.
-    // URL par défaut codée en dur pour être déployée avec le code.
-    'external_url' => env(
-        'APP_RELEASE_EXTERNAL_URL',
-        'https://www.mediafire.com/file/orkm67j1wqpib69/Together.apk/file'
-    ),
+    // URL externe optionnelle (Google Drive, GitHub Releases…).
+    // Si vide, l'APK est servi directement depuis public/downloads/.
+    'external_url' => env('APP_RELEASE_EXTERNAL_URL', ''),
 
 ];
