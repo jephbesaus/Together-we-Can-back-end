@@ -17,34 +17,39 @@ class FullSMMService
         $this->apiKey = config('fullsmm.api_key');
     }
 
-    private function request($endpoint, $params = [], $method = 'POST')
+    private function request($action, $params = [], $method = 'POST')
     {
-        $url = $this->apiUrl . '/' . $endpoint;
         $params['key'] = $this->apiKey;
+        $params['action'] = $action;
 
         try {
-            $response = Http::timeout(30)->$method($url, $params);
+            if ($method === 'GET') {
+                $response = Http::timeout(30)->get($this->apiUrl, $params);
+            } else {
+                $response = Http::timeout(30)->asForm()->post($this->apiUrl, $params);
+            }
+
+            $data = $response->json();
 
             if ($response->successful()) {
-                $data = $response->json();
                 if (isset($data['error'])) {
-                    Log::error('FullSMM API Error: ' . $data['error']);
+                    Log::warning('FullSMM API Error [' . $action . ']: ' . $data['error']);
                     return ['success' => false, 'error' => $data['error']];
                 }
                 return ['success' => true, 'data' => $data];
             }
 
-            Log::error('FullSMM API HTTP Error: ' . $response->status());
+            Log::error('FullSMM API HTTP Error [' . $action . ']: ' . $response->status());
             return ['success' => false, 'error' => 'HTTP Error ' . $response->status()];
         } catch (\Exception $e) {
-            Log::error('FullSMM API Exception: ' . $e->getMessage());
+            Log::error('FullSMM API Exception [' . $action . ']: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
     public function getBalance()
     {
-        $result = $this->request('balance');
+        $result = $this->request('balance', [], 'GET');
         if ($result['success']) return $result['data'];
         return null;
     }
@@ -55,8 +60,8 @@ class FullSMMService
         $services = Cache::get($cacheKey);
         if ($services) return $services;
 
-        $result = $this->request('services');
-        if ($result['success']) {
+        $result = $this->request('services', [], 'GET');
+        if ($result['success'] && is_array($result['data'])) {
             Cache::put($cacheKey, $result['data'], 3600);
             return $result['data'];
         }
@@ -79,15 +84,21 @@ class FullSMMService
         $services = $this->getServices();
         if (!$services) return null;
         foreach ($services as $service) {
-            if ($service['id'] == $serviceId) return $service;
+            if ($service['service'] == $serviceId) return $service;
         }
         return null;
     }
 
     public function placeOrder($serviceId, $link, $quantity, $customData = [])
     {
-        $params = ['service' => $serviceId, 'link' => $link, 'quantity' => $quantity];
-        if (!empty($customData)) $params = array_merge($params, $customData);
+        $params = [
+            'service' => $serviceId,
+            'link' => $link,
+            'quantity' => $quantity,
+        ];
+        if (!empty($customData)) {
+            $params = array_merge($params, $customData);
+        }
         $result = $this->request('order', $params);
         if ($result['success']) return $result['data'];
         return null;
@@ -95,7 +106,7 @@ class FullSMMService
 
     public function getOrderStatus($orderId)
     {
-        $result = $this->request('status', ['order_id' => $orderId]);
+        $result = $this->request('status', ['order' => $orderId]);
         if ($result['success']) return $result['data'];
         return null;
     }
