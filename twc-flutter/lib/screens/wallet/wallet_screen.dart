@@ -275,9 +275,15 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           Text(
             transaction['created_at'] != null
-                ? DateFormat('dd/MM HH:mm').format(
-                    DateTime.parse(transaction['created_at']),
-                  )
+                ? (() {
+                    try {
+                      return DateFormat('dd/MM HH:mm').format(
+                        DateTime.tryParse(transaction['created_at']) ?? DateTime.now(),
+                      );
+                    } catch (_) {
+                      return '';
+                    }
+                  })()
                 : '',
             style: TextStyle(
               color: Colors.grey[500],

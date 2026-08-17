@@ -6,7 +6,6 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Notification;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -30,102 +29,92 @@ class PaymentService
             'metadata' => json_encode([
                 'email' => $email,
                 'provider' => $provider,
+                'amount' => $amount,
                 'initiated_at' => now()->toISOString(),
             ]),
         ]);
 
         try {
-            $apiKey = config('chariow.api_key');
-            $productId = config('chariow.deposit_product_id', 'prd_dd7c35ic');
             $storeUrl = config('chariow.store_url', 'https://epazzsvw.mychariow.store');
+            $depositProductId = config('chariow.deposit_product_id', 'prd_dd7c35ic');
+            $apiKey = config('chariow.api_key');
 
-            if (!$apiKey) {
-                $transaction->update([
-                    'status' => 'failed',
-                    'metadata' => array_merge($transaction->metadata ?? [], [
-                        'error' => 'Clé API Chariow non configurée',
-                    ]),
-                ]);
-                return ['success' => false, 'message' => 'Service de paiement non configuré.'];
-            }
-
-            $response = Http::timeout(30)
-                ->withHeaders([
-                    'Authorization' => 'Bearer ' . $apiKey,
-                    'Content-Type' => 'application/json',
-                ])
-                ->post('https://api.chariow.com/v1/checkout', [
-                    'product_id' => $productId,
-                    'email' => $email,
-                    'first_name' => $user->name ?? 'Utilisateur',
-                    'last_name' => 'TWC',
-                    'phone' => [
-                        'number' => $user->phone ?? '000000000',
-                        'country_code' => 'CD',
-                    ],
-                    'payment_currency' => 'CDF',
-                    'redirect_url' => $storeUrl . '/thank-you',
-                    'custom_metadata' => [
-                        'user_id' => (string) $userId,
-                        'reference' => $reference,
-                        'type' => 'deposit',
-                    ],
-                ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                $step = $data['data']['step'] ?? null;
-
-                if ($step === 'payment') {
-                    $checkoutUrl = $data['data']['payment']['checkout_url'] ?? null;
-                    $saleId = $data['data']['purchase']['id'] ?? null;
-
-                    $transaction->update([
-                        'metadata' => array_merge($transaction->metadata ?? [], [
-                            'chariow_sale_id' => $saleId,
-                            'checkout_url' => $checkoutUrl,
-                        ]),
+            if ($apiKey) {
+                $response = \Illuminate\Support\Facades\Http::timeout(15)
+                    ->withHeaders([
+                        'Authorization' => 'Bearer ' . $apiKey,
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post('https://api.chariow.com/v1/checkout', [
+                        'product_id' => $depositProductId,
+                        'email' => $email,
+                        'first_name' => $user->name ?? 'Utilisateur',
+                        'last_name' => 'TWC',
+                        'phone' => [
+                            'number' => $user->phone ?? '000000000',
+                            'country_code' => 'CD',
+                        ],
+                        'payment_currency' => 'CDF',
+                        'redirect_url' => $storeUrl . '/thank-you',
+                        'custom_metadata' => [
+                            'user_id' => (string) $userId,
+                            'reference' => $reference,
+                            'type' => 'deposit',
+                            'amount' => (string) $amount,
+                        ],
                     ]);
 
-                    return [
-                        'success' => true,
-                        'transaction' => $transaction,
-                        'payment_url' => $checkoutUrl,
-                        'message' => 'Redirection vers le paiement...',
-                    ];
-                }
+                if ($response->successful()) {
+                    $data = $response->json();
+                    $step = $data['data']['step'] ?? null;
 
-                if ($step === 'completed') {
-                    $transaction->update([
-                        'status' => 'completed',
-                        'completed_at' => now(),
-                    ]);
-                    $user->increment('boost_balance', $amount);
+                    if ($step === 'payment') {
+                        $checkoutUrl = $data['data']['payment']['checkout_url'] ?? null;
+                        $saleId = $data['data']['purchase']['id'] ?? null;
 
-                    return [
-                        'success' => true,
-                        'transaction' => $transaction,
-                        'payment_url' => null,
-                        'message' => 'Paiement confirmé.',
-                    ];
+                        $transaction->update([
+                            'metadata' => array_merge($transaction->metadata ?? [], [
+                                'chariow_sale_id' => $saleId,
+                                'checkout_url' => $checkoutUrl,
+                            ]),
+                        ]);
+
+                        return [
+                            'success' => true,
+                            'transaction' => $transaction,
+                            'payment_url' => $checkoutUrl,
+                            'message' => 'Redirection vers le paiement...',
+                        ];
+                    }
+
+                    if ($step === 'completed') {
+                        $transaction->update([
+                            'status' => 'completed',
+                            'completed_at' => now(),
+                        ]);
+                        $user->increment('boost_balance', $amount);
+
+                        return [
+                            'success' => true,
+                            'transaction' => $transaction,
+                            'payment_url' => null,
+                            'message' => 'Paiement confirmé.',
+                        ];
+                    }
                 }
             }
-
-            $errorMsg = $response->json('message') ?? 'Erreur lors du paiement.';
-            $transaction->update([
-                'status' => 'failed',
-                'metadata' => array_merge($transaction->metadata ?? [], ['error' => $errorMsg]),
-            ]);
-
-            return ['success' => false, 'message' => $errorMsg];
         } catch (\Exception $e) {
-            Log::error('Chariow deposit exception: ' . $e->getMessage());
-            $transaction->update([
-                'status' => 'failed',
-                'metadata' => array_merge($transaction->metadata ?? [], ['error' => $e->getMessage()]),
-            ]);
-            return ['success' => false, 'message' => 'Erreur technique: ' . $e->getMessage()];
+            Log::warning('Chariow API checkout failed, falling back to store redirect: ' . $e->getMessage());
         }
+
+        $paymentUrl = $storeUrl . '/' . $depositProductId;
+
+        return [
+            'success' => true,
+            'transaction' => $transaction,
+            'payment_url' => $paymentUrl,
+            'message' => 'Redirection vers la boutique Chariow...',
+        ];
     }
 
     public function depositOrangeMoney($userId, $amount, $email)
