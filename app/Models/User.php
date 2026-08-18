@@ -19,7 +19,8 @@ class User extends Authenticatable
         'is_blocked', 'followers_count', 'following_count', 'boost_balance',
         'savings_balance', 'referral_code', 'referred_by', 'referral_count',
         'referral_earnings', 'referral_expires_at', 'device_token',
-        'device_platform', 'device_id', 'otp', 'otp_expires_at', 'last_active'
+        'device_platform', 'device_id', 'otp', 'otp_expires_at', 'last_active',
+        'is_admin_activated'
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -28,6 +29,7 @@ class User extends Authenticatable
         'is_premium' => 'boolean',
         'is_verified' => 'boolean',
         'is_blocked' => 'boolean',
+        'is_admin_activated' => 'boolean',
         'boost_balance' => 'decimal:2',
         'savings_balance' => 'decimal:2',
         'otp_expires_at' => 'datetime',

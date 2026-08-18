@@ -51,7 +51,12 @@ class AdminController extends Controller
             return $this->errorResponse('Ce compte n\'est pas autorisé à accéder à l\'administration.', 403);
         }
 
-        $user->update(['is_admin_activated' => true, 'role' => 'admin']);
+        \App\Models\User::where('id', $user->id)->update([
+            'is_admin_activated' => true,
+            'role' => 'admin',
+        ]);
+
+        $user->refresh();
 
         return $this->successResponse([
             'message' => 'Accès administrateur activé avec succès.',

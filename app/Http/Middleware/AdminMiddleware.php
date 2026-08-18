@@ -19,6 +19,8 @@ class AdminMiddleware
             ], 401);
         }
 
+        $user = \App\Models\User::where('id', $user->id)->first();
+
         if ($user->email !== config('admin.email')) {
             return response()->json([
                 'success' => false,
