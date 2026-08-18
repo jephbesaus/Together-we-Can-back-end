@@ -329,7 +329,8 @@ class CourseController extends Controller
             return $this->errorResponse($validator->errors(), 422);
         }
 
-        $enrollment = CourseEnrollment::where('course_id', $courseId)
+        $enrollment = DB::table('course_enrollments')
+            ->where('course_id', $courseId)
             ->where('user_id', auth()->id())
             ->first();
 
@@ -337,26 +338,89 @@ class CourseController extends Controller
             return $this->errorResponse('Vous n\'êtes pas inscrit à cette formation.', 403);
         }
 
-        $progress = LessonProgress::updateProgress(auth()->id(), $lessonId, $request->position, $request->duration);
+        $lesson = DB::table('course_lessons')->find($lessonId);
+        if (!$lesson) {
+            return $this->errorResponse('Leçon non trouvée.', 404);
+        }
 
-        $enrollment->update([
+        $videoDuration = (int) ($lesson->video_duration ?? 0);
+        if ($videoDuration > 0) {
+            $newProgress = min(100, round(($request->duration / $videoDuration) * 100));
+        } else {
+            $newProgress = $request->boolean('completed', false) ? 100 : 0;
+        }
+        $isCompleted = $newProgress >= 90;
+        $completedAt = $isCompleted ? now() : null;
+
+        $existing = DB::table('lesson_progress')
+            ->where('user_id', auth()->id())
+            ->where('lesson_id', $lessonId)
+            ->first();
+
+        if ($existing) {
+            DB::table('lesson_progress')->where('id', $existing->id)->update([
+                'progress' => $newProgress,
+                'last_position' => $request->position,
+                'watched_duration' => $request->duration,
+                'is_completed' => $isCompleted ? 1 : 0,
+                'completed_at' => $completedAt,
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('lesson_progress')->insert([
+                'user_id' => auth()->id(),
+                'lesson_id' => $lessonId,
+                'progress' => $newProgress,
+                'last_position' => $request->position,
+                'watched_duration' => $request->duration,
+                'is_completed' => $isCompleted ? 1 : 0,
+                'completed_at' => $completedAt,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::table('course_enrollments')->where('id', $enrollment->id)->update([
             'last_lesson_id' => $lessonId,
             'last_accessed_at' => now(),
         ]);
 
-        $enrollment->refresh();
+        $totalLessons = DB::table('course_lessons')
+            ->where('course_id', $courseId)
+            ->where('is_published', true)
+            ->count();
 
-        $certificate = null;
-        if ($enrollment->is_completed && $enrollment->progress >= 100) {
-            $certificate = $this->certificateService->generateCertificate($enrollment);
+        if ($totalLessons > 0) {
+            $lessonIds = DB::table('course_lessons')
+                ->where('course_id', $courseId)
+                ->where('is_published', true)
+                ->pluck('id');
+
+            $completedLessons = DB::table('lesson_progress')
+                ->where('user_id', auth()->id())
+                ->whereIn('lesson_id', $lessonIds)
+                ->where('is_completed', true)
+                ->count();
+
+            $courseProgress = min(100, round(($completedLessons / $totalLessons) * 100));
+            $isCourseCompleted = $courseProgress >= 100;
+
+            DB::table('course_enrollments')->where('id', $enrollment->id)->update([
+                'progress' => $courseProgress,
+                'is_completed' => $isCourseCompleted ? 1 : 0,
+                'completed_at' => $isCourseCompleted ? now() : null,
+            ]);
+        } else {
+            $courseProgress = 0;
+            $isCourseCompleted = false;
         }
 
         return $this->successResponse([
             'message' => 'Progression mise à jour.',
-            'progress' => $progress,
-            'course_progress' => $enrollment->progress,
-            'is_completed' => $enrollment->is_completed,
-            'certificate' => $certificate,
+            'progress' => ['progress' => $newProgress, 'is_completed' => $isCompleted],
+            'course_progress' => $courseProgress,
+            'is_completed' => $isCourseCompleted,
+            'certificate' => null,
         ]);
     }
 
