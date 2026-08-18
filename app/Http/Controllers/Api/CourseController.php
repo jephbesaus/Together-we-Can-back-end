@@ -12,6 +12,7 @@ use App\Services\CertificateService;
 use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class CourseController extends Controller
 {
@@ -92,31 +93,96 @@ class CourseController extends Controller
 
     public function show($id)
     {
-        $course = Course::withoutGlobalScopes()->with(['sections.lessons', 'reviews.user'])->find($id);
-
-        if (!$course) {
+        $row = DB::table('courses')->find($id);
+        if (!$row) {
             return $this->errorResponse('Formation non trouvée.', 404);
         }
 
-        $data = $course->toArray();
-        $data['instructor'] = $course->instructor ? [
-            'id' => $course->instructor->id,
-            'name' => $course->instructor->name,
-            'profile_photo_url' => $course->instructor->profile_photo_url,
-        ] : null;
+        $instructor = DB::table('users')->find($row->instructor_id);
 
-        if (auth()->check()) {
-            $data['is_enrolled'] = $course->enrollments()->where('user_id', auth()->id())->exists();
-            if ($data['is_enrolled']) {
-                $enrollment = $course->enrollments()->where('user_id', auth()->id())->first();
-                $data['progress'] = $enrollment->progress ?? 0;
-            } else {
-                $data['progress'] = 0;
-            }
-        } else {
-            $data['is_enrolled'] = false;
-            $data['progress'] = 0;
+        $sections = DB::table('course_sections')
+            ->where('course_id', $id)
+            ->orderBy('order_position')
+            ->get();
+
+        foreach ($sections as $section) {
+            $section->lessons = DB::table('course_lessons')
+                ->where('section_id', $section->id)
+                ->orderBy('order_position')
+                ->get();
         }
+
+        $enrolled = false;
+        $progress = 0;
+        if (auth()->check()) {
+            $enrollment = DB::table('course_enrollments')
+                ->where('course_id', $id)
+                ->where('user_id', auth()->id())
+                ->first();
+            $enrolled = $enrollment !== null;
+            $progress = $enrollment ? (int) $enrollment->progress : 0;
+        }
+
+        $reviews = DB::table('course_reviews')
+            ->where('course_id', $id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        foreach ($reviews as $review) {
+            $reviewUser = DB::table('users')->find($review->user_id);
+            $review->user = $reviewUser ? [
+                'id' => $reviewUser->id,
+                'name' => $reviewUser->name,
+                'profile_photo_url' => $instructor
+                    ? 'https://ui-avatars.com/api/?name=' . urlencode($reviewUser->name) . '&color=FFFFFF&background=00A86B'
+                    : null,
+            ] : null;
+            unset($review->user_id);
+        }
+
+        $price = (float) $row->price;
+        $formattedPrice = $row->is_free ? 'Gratuit' : number_format($price, 0, ',', ' ') . ' CDF';
+        $hours = floor($row->duration_minutes / 60);
+        $minutes = $row->duration_minutes % 60;
+        $formattedDuration = $hours > 0 ? $hours . 'h ' . $minutes . 'min' : $minutes . 'min';
+        $levelLabels = ['beginner' => 'Débutant', 'intermediate' => 'Intermédiaire', 'advanced' => 'Avancé', 'expert' => 'Expert'];
+
+        $data = [
+            'id' => (int) $row->id,
+            'instructor_id' => (int) $row->instructor_id,
+            'title' => $row->title,
+            'description' => $row->description,
+            'cover_image' => $row->cover_image ? \App\Support\MediaHelper::absoluteUrl($row->cover_image) : null,
+            'category' => $row->category,
+            'level' => $row->level,
+            'price' => number_format($price, 2),
+            'is_free' => (bool) $row->is_free,
+            'is_published' => (bool) $row->is_published,
+            'status' => $row->status,
+            'featured' => (bool) $row->featured,
+            'duration_minutes' => (int) $row->duration_minutes,
+            'lessons_count' => (int) $row->lessons_count,
+            'students_count' => (int) $row->students_count,
+            'rating' => number_format((float) $row->rating, 2),
+            'reviews_count' => (int) $row->reviews_count,
+            'what_you_will_learn' => $row->what_you_will_learn ? json_decode($row->what_you_will_learn, true) : [],
+            'requirements' => $row->requirements ? json_decode($row->requirements, true) : [],
+            'target_audience' => $row->target_audience ? json_decode($row->target_audience, true) : [],
+            'created_at' => $row->created_at,
+            'updated_at' => $row->updated_at,
+            'formatted_price' => $formattedPrice,
+            'is_enrolled' => $enrolled,
+            'progress' => $progress,
+            'level_label' => $levelLabels[$row->level] ?? $row->level,
+            'formatted_duration' => $formattedDuration,
+            'instructor' => $instructor ? [
+                'id' => (int) $instructor->id,
+                'name' => $instructor->name,
+                'profile_photo_url' => 'https://ui-avatars.com/api/?name=' . urlencode($instructor->name) . '&color=FFFFFF&background=00A86B',
+            ] : null,
+            'sections' => $sections,
+            'reviews' => $reviews,
+        ];
 
         return $this->successResponse(['course' => $data]);
     }
