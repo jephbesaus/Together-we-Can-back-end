@@ -16,6 +16,7 @@ import '../screens/menu/premium_screen.dart';
 import '../screens/menu/marketing_screen.dart';
 import '../screens/menu/announcements_screen.dart';
 import '../screens/menu/support_screen.dart';
+import '../screens/menu/about_screen.dart';
 import '../screens/menu/settings_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/admin/admin_activation_screen.dart';
@@ -163,6 +164,10 @@ class _AppDrawerState extends State<AppDrawer> {
                   _item(Icons.help_outline, 'Support & Aide', () {
                     Get.back();
                     Get.to(() => const SupportScreen());
+                  }),
+                  _item(Icons.info_outline, 'A propos', () {
+                    Get.back();
+                    Get.to(() => const AboutScreen());
                   }),
                   const Divider(),
                   if (_user?.email == AppConstants.adminEmail)

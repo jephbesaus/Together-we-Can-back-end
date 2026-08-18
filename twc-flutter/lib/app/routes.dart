@@ -27,6 +27,9 @@ import '../screens/admin/admin_news_screen.dart';
 import '../screens/course/lesson_player_screen.dart';
 import '../screens/wallet/withdraw_screen.dart';
 import '../screens/menu/settings_screen.dart';
+import '../screens/menu/about_screen.dart';
+import '../screens/courses/instructor_dashboard_screen.dart';
+import '../screens/courses/certificate_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class AppRoutes {
@@ -62,6 +65,9 @@ class AppRoutes {
   static const lessonPlayer = '/course/lesson';
   static const withdraw = '/wallet/withdraw';
   static const adminNews = '/admin/news';
+  static const about = '/about';
+  static const instructorDashboard = '/instructor/dashboard';
+  static const certificate = '/certificate';
 
   static final routes = [
     GetPage(name: splash, page: () => const SplashScreen()),
@@ -112,5 +118,16 @@ class AppRoutes {
     }),
     GetPage(name: withdraw, page: () => const WithdrawScreen()),
     GetPage(name: adminNews, page: () => const AdminNewsScreen()),
+    GetPage(name: about, page: () => const AboutScreen()),
+    GetPage(name: instructorDashboard, page: () => const InstructorDashboardScreen()),
+    GetPage(name: certificate, page: () {
+      final args = Get.arguments as Map<String, dynamic>;
+      return CertificateScreen(
+        certificateUrl: args['certificateUrl'],
+        courseTitle: args['courseTitle'] ?? '',
+        userName: args['userName'] ?? '',
+        completedAt: args['completedAt'] ?? '',
+      );
+    }),
   ];
 }

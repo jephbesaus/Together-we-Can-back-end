@@ -73,6 +73,22 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     }
   }
 
+  void _toggleLike() async {
+    final story = widget.stories[_currentIndex];
+    setState(() {
+      _isLiked = !_isLiked;
+      _likesCount += _isLiked ? 1 : -1;
+    });
+    try {
+      await _api.post('/posts/stories/${story.id}/like');
+    } catch (e) {
+      setState(() {
+        _isLiked = !_isLiked;
+        _likesCount += _isLiked ? 1 : -1;
+      });
+    }
+  }
+
   void _deleteStory(Post story) async {
     final confirm = await Get.dialog(
       AlertDialog(
@@ -89,7 +105,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     );
     if (confirm != true) return;
     try {
-      await _api.delete('/posts/${story.id}');
+      await _api.delete('/posts/stories/${story.id}');
       Get.back();
       Get.snackbar('Succès', 'Story supprimée.');
     } catch (e) {
@@ -214,6 +230,18 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                             icon: const Icon(Icons.delete, color: Colors.white),
                             onPressed: () => _deleteStory(story),
                           ),
+                        if (_likesCount > 0)
+                          Text(
+                            '$_likesCount',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        IconButton(
+                          icon: Icon(
+                            _isLiked ? Icons.favorite : Icons.favorite_border,
+                            color: _isLiked ? Colors.red : Colors.white,
+                          ),
+                          onPressed: _toggleLike,
+                        ),
                         IconButton(
                           icon: const Icon(Icons.close, color: Colors.white),
                           onPressed: () => Navigator.of(context).pop(),

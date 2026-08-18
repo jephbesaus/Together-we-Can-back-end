@@ -11,6 +11,7 @@ import '../profile/edit_profile_screen.dart';
 import 'my_posts_screen.dart';
 import 'legal_content_screen.dart';
 import 'support_screen.dart';
+import 'about_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -361,6 +362,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Support / Aide',
             subtitle: 'Contactez-nous',
             onTap: () => Get.to(() => const SupportScreen()),
+          ),
+          _tile(
+            icon: Icons.info_outline,
+            title: 'A propos',
+            subtitle: 'En savoir plus sur Together We Can',
+            onTap: () => Get.to(() => const AboutScreen()),
           ),
           const Divider(),
 

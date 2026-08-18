@@ -17,7 +17,7 @@ class SupportScreen extends StatelessWidget {
     },
     {
       'q': 'Comment fonctionne le parrainage ?',
-      'a': 'Partage ton code depuis l\'onglet Réseau. Quand quelqu\'un s\'inscrit avec ton code, tu gagnes 500 CDF.',
+      'a': 'Partage ton code depuis l\'onglet Réseau. Quand quelqu\'un s\'inscrit avec ton code, tu gagnes 1 000 CDF.',
     },
     {
       'q': 'J\'ai oublié mon mot de passe, que faire ?',

@@ -23,7 +23,6 @@ use App\Http\Controllers\Api\NewsController;
 
 use App\Http\Controllers\Api\InfoController;
 
-Route::post('/webhooks/fusionpay', [WebhookController::class, 'fusionPay']);
 Route::match(['get', 'post'], '/webhooks/chariow', [WebhookController::class, 'chariow']);
 
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
