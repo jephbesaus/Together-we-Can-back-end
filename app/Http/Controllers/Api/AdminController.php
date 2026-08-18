@@ -51,18 +51,6 @@ class AdminController extends Controller
             return $this->errorResponse('Ce compte n\'est pas autorisé à accéder à l\'administration.', 403);
         }
 
-        $validator = Validator::make($request->all(), [
-            'code' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return $this->errorResponse($validator->errors(), 422);
-        }
-
-        if ($request->code !== config('admin.activation_code')) {
-            return $this->errorResponse('Code d\'activation incorrect.', 403);
-        }
-
         $user->update(['is_admin_activated' => true, 'role' => 'admin']);
 
         return $this->successResponse([

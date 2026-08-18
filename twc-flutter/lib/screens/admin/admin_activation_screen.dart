@@ -13,94 +13,69 @@ class AdminActivationScreen extends StatefulWidget {
 
 class _AdminActivationScreenState extends State<AdminActivationScreen> {
   final ApiService _api = Get.find<ApiService>();
-  final TextEditingController _codeController = TextEditingController();
-  bool _isLoading = false;
-  bool _isAlreadyActivated = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _checkActivation();
+    _checkAndActivate();
   }
 
-  Future<void> _checkActivation() async {
+  Future<void> _checkAndActivate() async {
+    // First try to access dashboard (already activated?)
     try {
-      final response = await _api.get('/admin/dashboard');
-      if (response['success']) {
-        setState(() => _isAlreadyActivated = true);
+      final dashboard = await _api.get('/admin/dashboard');
+      if (dashboard['success']) {
         Get.offAll(() => const AdminDashboardScreen());
+        return;
       }
     } catch (_) {}
-  }
 
-  Future<void> _activate() async {
-    if (_codeController.text.trim().isEmpty) {
-      Get.snackbar('Erreur', 'Entrez le code d\'activation.');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
+    // Not activated yet — activate automatically
     try {
-      final response = await _api.post('/admin/activate', data: {
-        'code': _codeController.text.trim(),
-      });
-
+      final response = await _api.post('/admin/activate', data: {});
       if (response['success']) {
         Get.offAll(() => const AdminDashboardScreen());
         Get.snackbar('Bienvenue', 'Accès administrateur activé.');
+        return;
       } else {
-        Get.snackbar(
-          'Erreur',
-          ApiService.extractErrorMessage(response['error'], fallback: 'Code incorrect.'),
-        );
+        // Wrong email or not authorized
+        final msg = ApiService.extractErrorMessage(response['error'], fallback: 'Accès refusé.');
+        setState(() => _isLoading = false);
+        Get.snackbar('Erreur', msg);
       }
     } catch (e) {
+      setState(() => _isLoading = false);
       Get.snackbar('Erreur', 'Erreur réseau.');
     }
-
-    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Accès administrateur')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.admin_panel_settings, size: 64, color: AppConstants.primaryColor),
-            const SizedBox(height: 16),
-            const Text('Code d\'activation', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Entrez le code fourni pour accéder au tableau de bord admin.',
-                style: TextStyle(color: Colors.grey[600])),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _codeController,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Code',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      appBar: AppBar(title: const Text('Administration')),
+      body: Center(
+        child: _isLoading
+            ? const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.admin_panel_settings, size: 64, color: AppConstants.primaryColor),
+                  SizedBox(height: 24),
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Activation en cours...'),
+                ],
+              )
+            : const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.block, size: 64, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text('Accès administrateur refusé', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 8),
+                  Text('Seul le compte administrateur autorisé peut accéder.'),
+                ],
               ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _activate,
-                style: ElevatedButton.styleFrom(backgroundColor: AppConstants.primaryColor),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Activer', style: TextStyle(color: Colors.white)),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
