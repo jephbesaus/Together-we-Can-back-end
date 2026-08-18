@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Response;
 
 Route::get('/', function () {
     return view('landing');
@@ -24,8 +25,15 @@ Route::get('/download', function () {
     $path = public_path('downloads/' . $filename);
 
     if (file_exists($path)) {
-        return response()->download($path, $filename, [
+        $size = filesize($path);
+
+        return Response::stream(function () use ($path) {
+            readfile($path);
+        }, 200, [
             'Content-Type' => 'application/vnd.android.package-archive',
+            'Content-Disposition' => 'attachment; filename="together-we-can.apk"',
+            'Content-Length' => $size,
+            'Cache-Control' => 'no-cache',
         ]);
     }
 
