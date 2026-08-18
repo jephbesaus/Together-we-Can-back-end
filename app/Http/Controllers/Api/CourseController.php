@@ -92,20 +92,33 @@ class CourseController extends Controller
 
     public function show($id)
     {
-        try {
-            $course = Course::with(['instructor', 'sections.lessons', 'reviews.user'])
-                ->published()
-                ->find($id);
+        $course = Course::withoutGlobalScopes()->with(['sections.lessons', 'reviews.user'])->find($id);
 
-            if (!$course) {
-                return $this->errorResponse('Formation non trouvée.', 404);
-            }
-
-            return $this->successResponse(['course' => $course]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Course show error: ' . $e->getMessage());
-            return $this->errorResponse('Erreur lors du chargement: ' . $e->getMessage(), 500);
+        if (!$course) {
+            return $this->errorResponse('Formation non trouvée.', 404);
         }
+
+        $data = $course->toArray();
+        $data['instructor'] = $course->instructor ? [
+            'id' => $course->instructor->id,
+            'name' => $course->instructor->name,
+            'profile_photo_url' => $course->instructor->profile_photo_url,
+        ] : null;
+
+        if (auth()->check()) {
+            $data['is_enrolled'] = $course->enrollments()->where('user_id', auth()->id())->exists();
+            if ($data['is_enrolled']) {
+                $enrollment = $course->enrollments()->where('user_id', auth()->id())->first();
+                $data['progress'] = $enrollment->progress ?? 0;
+            } else {
+                $data['progress'] = 0;
+            }
+        } else {
+            $data['is_enrolled'] = false;
+            $data['progress'] = 0;
+        }
+
+        return $this->successResponse(['course' => $data]);
     }
 
     public function enroll($id)

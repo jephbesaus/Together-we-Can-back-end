@@ -12,6 +12,7 @@ use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class InstructorController extends Controller
 {
@@ -261,7 +262,6 @@ class InstructorController extends Controller
 
     public function addLesson(Request $request, $courseId, $sectionId)
     {
-        try {
         $course = Course::where('instructor_id', auth()->id())->find($courseId);
 
         if (!$course) {
@@ -279,10 +279,7 @@ class InstructorController extends Controller
             'description' => 'nullable|string|max:2000',
             'content' => 'nullable|string',
             'type' => 'required|in:video,text,document,quiz',
-            'video' => 'nullable|file|mimes:mp4,mov,avi|max:512000',
             'video_url' => 'nullable|string|max:500',
-            'documents' => 'nullable|array',
-            'documents.*' => 'file|mimes:pdf,doc,docx,xls,xlsx|max:10240',
             'duration' => 'nullable|integer|min:0',
             'is_free_preview' => 'boolean',
         ]);
@@ -293,50 +290,29 @@ class InstructorController extends Controller
 
         $maxOrder = CourseLesson::where('course_id', $courseId)->where('section_id', $sectionId)->max('order_position') ?? 0;
 
-        $videoUrl = $request->video_url;
-        if ($request->hasFile('video')) {
-            $videoPath = $request->file('video')->store('courses/videos', 'public');
-            $videoUrl = Storage::url($videoPath);
-        }
-
-        $documents = null;
-        if ($request->hasFile('documents')) {
-            $docPaths = [];
-            foreach ($request->file('documents') as $doc) {
-                $docPaths[] = $doc->store('courses/documents', 'public');
-            }
-            $documents = $docPaths;
-        }
-
-        $lesson = CourseLesson::create([
+        $lessonId = DB::table('course_lessons')->insertGetId([
             'course_id' => $courseId,
             'section_id' => $sectionId,
             'title' => $request->title,
             'description' => $request->description,
             'content' => $request->content,
             'type' => $request->type,
-            'video_url' => $videoUrl,
-            'video_duration' => $request->duration,
-            'documents' => $documents,
+            'video_url' => $request->video_url,
+            'video_duration' => $request->duration ?? 0,
+            'documents' => null,
             'order_position' => $maxOrder + 1,
-            'is_free_preview' => $request->boolean('is_free_preview', false),
-            'is_published' => true,
+            'is_free_preview' => $request->boolean('is_free_preview', false) ? 1 : 0,
+            'is_published' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
-        try {
-            $this->recalculateCourseDuration($courseId);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('recalculateCourseDuration failed: ' . $e->getMessage());
-        }
+        $this->recalculateCourseDuration($courseId);
 
         return $this->successResponse([
             'message' => 'Leçon ajoutée.',
-            'lesson' => $lesson,
+            'lesson' => ['id' => $lessonId, 'title' => $request->title, 'type' => $request->type],
         ], 201);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('addLesson error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return $this->errorResponse('Erreur serveur: ' . $e->getMessage(), 500);
-        }
     }
 
     public function updateLesson(Request $request, $courseId, $lessonId)
@@ -492,11 +468,14 @@ class InstructorController extends Controller
 
     private function recalculateCourseDuration($courseId)
     {
-        $totalDuration = CourseLesson::where('course_id', $courseId)
+        $totalDuration = DB::table('course_lessons')
+            ->where('course_id', $courseId)
             ->where('is_published', true)
             ->sum('video_duration');
 
-        Course::where('id', $courseId)->update(['duration_minutes' => (int) ($totalDuration / 60)]);
+        DB::table('courses')->where('id', $courseId)->update([
+            'duration_minutes' => (int) ($totalDuration / 60),
+        ]);
     }
 
     private function recalculateLessonsCount($courseId)
