@@ -222,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      if (Get.find<AuthService>().user?.email == AppConstants.adminEmail) ...[
+                      if (_user?.email == AppConstants.adminEmail) ...[
                         Row(
                           children: [
                             Expanded(
