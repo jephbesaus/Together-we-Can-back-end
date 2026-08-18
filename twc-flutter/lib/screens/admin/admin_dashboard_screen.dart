@@ -12,6 +12,7 @@ import 'admin_courses_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_announcements_screen.dart';
 import 'admin_news_screen.dart';
+import 'admin_payments_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -103,6 +104,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         _buildQuickAction(Icons.shopping_bag, 'Marketplace', () => Get.to(() => const AdminMarketplaceScreen())),
                         _buildQuickAction(Icons.trending_up, 'Boost', () => Get.to(() => const AdminBoostScreen())),
                         _buildQuickAction(Icons.book, 'Formations', () => Get.to(() => const AdminCoursesScreen())),
+                        _buildQuickAction(Icons.payment, 'Paiements', () => Get.to(() => const AdminPaymentsScreen())),
                         _buildQuickAction(Icons.flag, 'Signalements', () => Get.to(() => const AdminReportsScreen())),
                         _buildQuickAction(Icons.newspaper, 'Actualités', () => Get.to(() => const AdminAnnouncementsScreen())),
                         _buildQuickAction(Icons.edit_note, 'Gérer les Actualités', () => Get.to(() => const AdminNewsScreen())),

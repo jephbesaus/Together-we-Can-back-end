@@ -150,6 +150,7 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
     Route::get('/transactions/{id}/check-status', [TransactionController::class, 'checkDepositStatus']);
     Route::post('/transactions/withdraw', [TransactionController::class, 'withdraw']);
     Route::post('/transactions/transfer', [TransactionController::class, 'transfer']);
+    Route::post('/transactions/manual-deposit', [TransactionController::class, 'manualDeposit']);
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
@@ -208,5 +209,8 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
         Route::put('/announcements/{id}', [AnnouncementController::class, 'update']);
         Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy']);
         Route::resource('news', NewsController::class)->except(['index', 'show']);
+        Route::get('/payments', [AdminController::class, 'pendingPayments']);
+        Route::post('/payments/{id}/approve', [AdminController::class, 'approvePayment']);
+        Route::post('/payments/{id}/reject', [AdminController::class, 'rejectPayment']);
     });
 });

@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class TransactionController extends Controller
 {
@@ -24,11 +26,12 @@ class TransactionController extends Controller
     {
         $user = auth()->user();
 
-        // Auto-complete any pending deposits older than 1 minute
+        // Auto-complete any pending deposits older than 1 minute (exclude manual deposits)
         $pending = Transaction::where('user_id', $user->id)
             ->where('type', 'deposit')
             ->where('status', 'pending')
             ->where('created_at', '<=', now()->subMinute())
+            ->whereRaw("metadata->>'manual' IS DISTINCT FROM 'true'")
             ->get();
 
         foreach ($pending as $tx) {
@@ -198,5 +201,41 @@ class TransactionController extends Controller
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
+    }
+
+    public function manualDeposit(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:500',
+            'reference' => 'required|string|max:255',
+            'provider' => 'required|in:orange,mtn,vodacom,airtel,africell,mpesa',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        $reference = 'MAN-DEP-' . Str::random(16);
+
+        $transaction = Transaction::create([
+            'user_id' => auth()->id(),
+            'type' => 'deposit',
+            'amount' => $request->amount,
+            'reference' => $reference,
+            'payment_method' => 'manual_' . $request->provider,
+            'status' => 'pending',
+            'description' => 'Dépôt manuel via ' . $request->provider,
+            'metadata' => json_encode([
+                'manual' => true,
+                'chariow_reference' => $request->reference,
+                'provider' => $request->provider,
+                'submitted_at' => now()->toISOString(),
+            ]),
+        ]);
+
+        return $this->successResponse([
+            'message' => 'Demande de dépôt soumise. En attente de vérification par l\'administrateur.',
+            'transaction' => $transaction,
+        ]);
     }
 }

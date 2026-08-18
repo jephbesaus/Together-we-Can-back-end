@@ -14,6 +14,7 @@ use App\Models\Transaction;
 use App\Services\FullSMMService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
@@ -491,13 +492,14 @@ class AdminController extends Controller
             'price' => 'required|numeric|min:0',
             'is_free' => 'boolean',
             'instructor_id' => 'nullable|integer|exists:users,id',
+            'cover_image' => 'nullable|image|max:5120',
         ]);
 
         if ($validator->fails()) {
             return $this->errorResponse($validator->errors(), 422);
         }
 
-        $course = Course::create([
+        $data = [
             'instructor_id' => $request->input('instructor_id', auth()->id()),
             'title' => $request->title,
             'description' => $request->description,
@@ -506,7 +508,13 @@ class AdminController extends Controller
             'price' => $request->price,
             'is_free' => $request->boolean('is_free', $request->price == 0),
             'is_published' => false,
-        ]);
+        ];
+
+        if ($request->hasFile('cover_image')) {
+            $data['cover_image'] = $request->file('cover_image')->store('courses/covers', 'public');
+        }
+
+        $course = Course::create($data);
 
         return $this->successResponse([
             'message' => 'Course created successfully.',
@@ -531,13 +539,20 @@ class AdminController extends Controller
             'is_free' => 'boolean',
             'is_published' => 'boolean',
             'featured' => 'boolean',
+            'cover_image' => 'nullable|image|max:5120',
         ]);
 
         if ($validator->fails()) {
             return $this->errorResponse($validator->errors(), 422);
         }
 
-        $course->update($request->only(['title', 'description', 'category', 'level', 'price', 'is_free', 'is_published', 'featured']));
+        $data = $request->only(['title', 'description', 'category', 'level', 'price', 'is_free', 'is_published', 'featured']);
+
+        if ($request->hasFile('cover_image')) {
+            $data['cover_image'] = $request->file('cover_image')->store('courses/covers', 'public');
+        }
+
+        $course->update($data);
 
         return $this->successResponse([
             'message' => 'Course updated successfully.',
@@ -611,5 +626,123 @@ class AdminController extends Controller
         ]);
 
         return $this->successResponse(['message' => 'Report resolved successfully.']);
+    }
+
+    public function pendingPayments(Request $request)
+    {
+        $query = Transaction::where('type', 'deposit')
+            ->whereRaw("metadata->>'manual' = 'true'")
+            ->with('user');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        } else {
+            $query->where('status', 'pending');
+        }
+
+        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+        return $this->successResponse([
+            'payments' => $result['items'],
+            'has_more' => $result['has_more'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+        ]);
+    }
+
+    public function approvePayment($id)
+    {
+        $transaction = Transaction::find($id);
+
+        if (!$transaction || $transaction->type !== 'deposit') {
+            return $this->errorResponse('Transaction non trouvée.', 404);
+        }
+
+        $meta = $transaction->metadata ?? [];
+        if (($meta['manual'] ?? null) !== true) {
+            return $this->errorResponse('Ce n\'est pas un paiement manuel.', 400);
+        }
+
+        if ($transaction->status !== 'pending') {
+            return $this->errorResponse('Ce paiement a déjà été traité.', 400);
+        }
+
+        $transaction->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
+        $user = User::find($transaction->user_id);
+        $user->increment('boost_balance', $transaction->amount);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'payment_approved',
+            'message' => 'Votre dépôt de ' . number_format($transaction->amount, 0, ',', '.') . ' CDF a été approuvé et crédité sur votre compte.',
+            'has_sound' => true,
+        ]);
+
+        Log::info('Admin approved manual payment', [
+            'admin_id' => auth()->id(),
+            'transaction_id' => $transaction->id,
+            'user_id' => $user->id,
+            'amount' => $transaction->amount,
+        ]);
+
+        return $this->successResponse(['message' => 'Paiement approuvé et crédité.']);
+    }
+
+    public function rejectPayment(Request $request, $id)
+    {
+        $transaction = Transaction::find($id);
+
+        if (!$transaction || $transaction->type !== 'deposit') {
+            return $this->errorResponse('Transaction non trouvée.', 404);
+        }
+
+        $meta = $transaction->metadata ?? [];
+        if (($meta['manual'] ?? null) !== true) {
+            return $this->errorResponse('Ce n\'est pas un paiement manuel.', 400);
+        }
+
+        if ($transaction->status !== 'pending') {
+            return $this->errorResponse('Ce paiement a déjà été traité.', 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        $transaction->update([
+            'status' => 'failed',
+            'metadata' => array_merge($meta, [
+                'rejected_reason' => $request->reason,
+                'rejected_at' => now()->toISOString(),
+                'rejected_by' => auth()->id(),
+            ]),
+        ]);
+
+        $user = User::find($transaction->user_id);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'payment_rejected',
+            'message' => 'Votre dépôt de ' . number_format($transaction->amount, 0, ',', '.') . ' CDF a été rejeté.' . ($request->reason ? ' Raison: ' . $request->reason : ''),
+            'has_sound' => true,
+        ]);
+
+        Log::info('Admin rejected manual payment', [
+            'admin_id' => auth()->id(),
+            'transaction_id' => $transaction->id,
+            'user_id' => $user->id,
+            'amount' => $transaction->amount,
+            'reason' => $request->reason,
+        ]);
+
+        return $this->successResponse(['message' => 'Paiement rejeté.']);
     }
 }

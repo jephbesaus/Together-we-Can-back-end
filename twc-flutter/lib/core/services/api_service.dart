@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../app/constants.dart';
@@ -123,6 +124,24 @@ class ApiService {
   Future<Map<String, dynamic>> multipart(String path, FormData data) async {
     try {
       final response = await _dio.post(path, data: data);
+      return response.data;
+    } on DioException catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>?> uploadFile(String path, File file, String fieldName, {String method = 'POST'}) async {
+    try {
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        fieldName: await MultipartFile.fromFile(file.path, filename: fileName),
+      });
+
+      final response = await _dio.request(
+        path,
+        data: formData,
+        options: Options(method: method),
+      );
       return response.data;
     } on DioException catch (e) {
       return _handleError(e);

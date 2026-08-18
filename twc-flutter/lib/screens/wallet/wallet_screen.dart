@@ -326,7 +326,9 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
   void _showDepositDialog() {
     final amountController = TextEditingController();
     final emailController = TextEditingController();
+    final referenceController = TextEditingController();
     String selectedProvider = 'orange';
+    bool isManual = false;
 
     Get.dialog(
       StatefulBuilder(
@@ -336,6 +338,64 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Toggle rapide / manuel
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setDialogState(() => isManual = false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: !isManual ? AppConstants.primaryColor : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Paiement rapide',
+                                style: TextStyle(
+                                  color: !isManual ? Colors.white : Colors.grey[600],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setDialogState(() => isManual = true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isManual ? AppConstants.primaryColor : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Paiement manuel',
+                                style: TextStyle(
+                                  color: isManual ? Colors.white : Colors.grey[600],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Montant
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.number,
@@ -345,15 +405,20 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'Votre email pour le paiement',
+
+                if (!isManual) ...[
+                  // Mode rapide : email + opérateur
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      hintText: 'Votre email pour le paiement',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
+
                 DropdownButtonFormField<String>(
                   value: selectedProvider,
                   decoration: const InputDecoration(labelText: 'Opérateur'),
@@ -368,6 +433,23 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
                     if (value != null) setDialogState(() => selectedProvider = value);
                   },
                 ),
+
+                if (isManual) ...[
+                  const SizedBox(height: 16),
+                  // Mode manuel : ID Chariow
+                  TextField(
+                    controller: referenceController,
+                    decoration: const InputDecoration(
+                      labelText: 'ID de transaction Chariow',
+                      hintText: 'Collez l\'ID reçu après le paiement',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Payez sur Chariow, puis collez l\'ID ici.',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  ),
+                ],
               ],
             ),
           ),
@@ -379,58 +461,89 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
             ElevatedButton(
               onPressed: () async {
                 final amount = double.tryParse(amountController.text);
-                final email = emailController.text.trim();
 
                 if (amount == null || amount < 500) {
                   Get.snackbar('Erreur', 'Montant minimum: 500 CDF');
                   return;
                 }
-                if (email.isEmpty || !email.contains('@')) {
-                  Get.snackbar('Erreur', 'Email valide requis.');
-                  return;
-                }
 
                 Get.back();
 
-                try {
-                  final response = await _api.post('/transactions/deposit', data: {
-                    'amount': amount,
-                    'email': email,
-                    'provider': selectedProvider,
-                  });
-
-                  if (response['success']) {
-                    final paymentUrl = response['data']['payment_url'];
-                    final txId = response['data']['transaction']?['id'];
-                    if (paymentUrl != null) {
-                      Get.snackbar('Paiement', 'Redirection vers Chariow...');
-                      launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
-                      if (txId != null) {
-                        Future.delayed(const Duration(seconds: 10), () async {
-                          try {
-                            await _api.get('/transactions/$txId/check-status');
-                            _loadData();
-                          } catch (_) {}
-                        });
-                        Future.delayed(const Duration(seconds: 30), () async {
-                          try {
-                            await _api.get('/transactions/$txId/check-status');
-                            _loadData();
-                          } catch (_) {}
-                        });
-                      }
-                    } else {
-                      Get.snackbar('Succès', 'Demande de dépôt envoyée.');
-                    }
-                    _loadData();
-                  } else {
-                    Get.snackbar(
-                      'Erreur',
-                      ApiService.extractErrorMessage(response['error'], fallback: 'Échec du dépôt.'),
-                    );
+                if (isManual) {
+                  // Mode manuel
+                  final reference = referenceController.text.trim();
+                  if (reference.isEmpty) {
+                    Get.snackbar('Erreur', 'L\'ID de transaction est requis.');
+                    return;
                   }
-                } catch (e) {
-                  Get.snackbar('Erreur', 'Erreur réseau.');
+
+                  try {
+                    final response = await _api.post('/transactions/manual-deposit', data: {
+                      'amount': amount,
+                      'reference': reference,
+                      'provider': selectedProvider,
+                    });
+
+                    if (response['success']) {
+                      Get.snackbar('Succès', 'Dépôt soumis. En attente de vérification par l\'admin.');
+                      _loadData();
+                    } else {
+                      Get.snackbar(
+                        'Erreur',
+                        ApiService.extractErrorMessage(response['error'], fallback: 'Échec du dépôt.'),
+                      );
+                    }
+                  } catch (e) {
+                    Get.snackbar('Erreur', 'Erreur réseau.');
+                  }
+                } else {
+                  // Mode rapide (Chariow redirect)
+                  final email = emailController.text.trim();
+                  if (email.isEmpty || !email.contains('@')) {
+                    Get.snackbar('Erreur', 'Email valide requis.');
+                    return;
+                  }
+
+                  try {
+                    final response = await _api.post('/transactions/deposit', data: {
+                      'amount': amount,
+                      'email': email,
+                      'provider': selectedProvider,
+                    });
+
+                    if (response['success']) {
+                      final paymentUrl = response['data']['payment_url'];
+                      final txId = response['data']['transaction']?['id'];
+                      if (paymentUrl != null) {
+                        Get.snackbar('Paiement', 'Redirection vers Chariow...');
+                        launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
+                        if (txId != null) {
+                          Future.delayed(const Duration(seconds: 10), () async {
+                            try {
+                              await _api.get('/transactions/$txId/check-status');
+                              _loadData();
+                            } catch (_) {}
+                          });
+                          Future.delayed(const Duration(seconds: 30), () async {
+                            try {
+                              await _api.get('/transactions/$txId/check-status');
+                              _loadData();
+                            } catch (_) {}
+                          });
+                        }
+                      } else {
+                        Get.snackbar('Succès', 'Demande de dépôt envoyée.');
+                      }
+                      _loadData();
+                    } else {
+                      Get.snackbar(
+                        'Erreur',
+                        ApiService.extractErrorMessage(response['error'], fallback: 'Échec du dépôt.'),
+                      );
+                    }
+                  } catch (e) {
+                    Get.snackbar('Erreur', 'Erreur réseau.');
+                  }
                 }
               },
               child: const Text('Déposer'),
