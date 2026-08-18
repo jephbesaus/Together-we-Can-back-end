@@ -38,14 +38,14 @@ Route::get('/download', function () {
 
 Route::get('/ref/{code}', function ($code) {
     $downloadUrl = url('/download');
-    $appName = config('app.name', 'Together We Can');
-    return response()->header('Content-Type', 'text/html')->setContent(<<<HTML
-<!DOCTYPE html>
+    $appName = 'Together We Can';
+
+    $html = '<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rejoignez $appName</title>
+<title>Rejoignez ' . $appName . '</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0B0B0B; color: #fff; font-family: -apple-system, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -67,24 +67,25 @@ Route::get('/ref/{code}', function ($code) {
 <body>
 <div class="card">
   <div class="logo">🤝</div>
-  <h1>$appName</h1>
+  <h1>' . $appName . '</h1>
   <p>Ensemble, on avance ! Rejoins la communauté et commence à gagner.</p>
   <div class="code-box">
     <div class="code-label">Ton code de parrainage</div>
-    <div class="code">$code</div>
+    <div class="code">' . e($code) . '</div>
   </div>
-  <a href="$downloadUrl" class="btn">Télécharger l'app</a>
+  <a href="' . e($downloadUrl) . '" class="btn">Télécharger l\'app</a>
   <div class="bonus">🎁 Gagne 500 CDF par parrainage !</div>
   <ol class="steps">
-    <li><strong>1.</strong> Télécharge et installe l'application</li>
+    <li><strong>1.</strong> Télécharge et installe l\'application</li>
     <li><strong>2.</strong> Crée ton compte</li>
-    <li><strong>3.</strong> Entre le code <strong>$code</strong> lors de l'inscription</li>
+    <li><strong>3.</strong> Entre le code <strong>' . e($code) . '</strong> lors de l\'inscription</li>
     <li><strong>4.</strong> Tu reçois <strong>500 CDF</strong> automatiquement !</li>
   </ol>
 </div>
 </body>
-</html>
-HTML);
+</html>';
+
+    return response($html, 200)->header('Content-Type', 'text/html');
 });
 
 // Vérification technique de l'état du serveur (utile pour le monitoring),
