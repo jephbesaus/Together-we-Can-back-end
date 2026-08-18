@@ -220,6 +220,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       onComment: () => _openComments(post),
                       onShare: () => _handleShare(post),
                       onReport: () => _handleReport(post),
+                      onDelete: () => _handleDelete(post),
                     );
                   },
                   childCount: _posts.length + 1,
@@ -268,6 +269,29 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       }
     } catch (e) {
       Get.snackbar('Erreur', 'Impossible de partager.');
+    }
+  }
+
+  Future<void> _handleDelete(Post post) async {
+    final confirm = await Get.dialog(
+      AlertDialog(
+        title: const Text('Supprimer la publication'),
+        content: const Text('Voulez-vous vraiment supprimer cette publication ?'),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Get.back(result: true), child: const Text('Supprimer', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final response = await _api.delete('/posts/${post.id}');
+      if (response['success']) {
+        setState(() => _posts.removeWhere((p) => p.id == post.id));
+        Get.snackbar('Succès', 'Publication supprimée.');
+      }
+    } catch (e) {
+      Get.snackbar('Erreur', 'Impossible de supprimer.');
     }
   }
 

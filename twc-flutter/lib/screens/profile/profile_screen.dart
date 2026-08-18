@@ -11,6 +11,7 @@ import '../../widgets/post_widget.dart';
 import 'edit_profile_screen.dart';
 import '../auth/login_screen.dart';
 import '../menu/settings_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
 import '../../widgets/verified_badge.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -221,6 +222,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      if (Get.find<AuthService>().user?.email == AppConstants.adminEmail) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => Get.to(() => const AdminDashboardScreen()),
+                                icon: const Icon(Icons.admin_panel_settings),
+                                label: const Text('Admin Dashboard'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppConstants.primaryColor,
+                                  side: BorderSide(color: AppConstants.primaryColor),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Row(
                         children: [
                           Expanded(

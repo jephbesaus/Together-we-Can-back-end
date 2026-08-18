@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\CampaignController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\InstructorController;
+use App\Http\Controllers\Api\NewsController;
 
 use App\Http\Controllers\Api\InfoController;
 
@@ -31,6 +32,8 @@ Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp'])->middlewar
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp'])->middleware('throttle:5,1');
+
+Route::get('/news', [NewsController::class, 'index']);
 
 Route::get('/app/version', [AppReleaseController::class, 'info']);
 Route::get('/support', [InfoController::class, 'support']);
@@ -55,6 +58,8 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
     Route::get('/posts/stories', [PostController::class, 'stories']);
     Route::post('/posts/stories/{id}/view', [PostController::class, 'viewStory']);
     Route::get('/posts/stories/{id}/likers', [PostController::class, 'storyLikers']);
+    Route::post('/posts/stories/{id}/like', [PostController::class, 'toggleStoryLike']);
+    Route::delete('/posts/stories/{id}', [PostController::class, 'destroyStory']);
     Route::get('/posts/search', [PostController::class, 'search']);
     Route::post('/posts', [PostController::class, 'store']);
     Route::get('/posts/{id}', [PostController::class, 'show']);
@@ -203,5 +208,6 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
         Route::post('/announcements', [AnnouncementController::class, 'store']);
         Route::put('/announcements/{id}', [AnnouncementController::class, 'update']);
         Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy']);
+        Route::resource('news', NewsController::class)->except(['index', 'show']);
     });
 });

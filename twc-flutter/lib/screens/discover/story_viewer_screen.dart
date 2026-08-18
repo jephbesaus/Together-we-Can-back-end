@@ -20,7 +20,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   late int _currentIndex;
   late AnimationController _progressController;
   final ApiService _api = Get.find<ApiService>();
+  final AuthService _auth = Get.find<AuthService>();
   final Set<String> _viewedStories = {};
+  bool _isLiked = false;
+  int _likesCount = 0;
 
   @override
   void initState() {

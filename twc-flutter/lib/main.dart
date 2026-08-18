@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'app/theme.dart';
 import 'app/routes.dart';
 import 'app/constants.dart';
@@ -37,6 +38,7 @@ void main() async {
   runApp(const MyApp());
 
   _initFirebaseAndFcmInBackground();
+  _checkForUpdates();
 }
 
 Future<void> _initFirebaseAndFcmInBackground() async {
@@ -47,6 +49,37 @@ Future<void> _initFirebaseAndFcmInBackground() async {
   } catch (e) {
     print('Firebase/FCM init error (non-bloquant, app déjà lancée): $e');
   }
+}
+
+Future<void> _checkForUpdates() async {
+  try {
+    final api = Get.find<ApiService>();
+    final response = await api.get('/app/version');
+    if (response['success'] && response['data']['available'] == true) {
+      final serverVersion = response['data']['version'] ?? '';
+      if (serverVersion != AppConstants.appVersion && serverVersion.isNotEmpty) {
+        Future.delayed(const Duration(seconds: 5), () {
+          Get.dialog(
+            AlertDialog(
+              title: const Text('Mise à jour disponible'),
+              content: Text('Version $serverVersion disponible.\n${response['data']['release_notes'] ?? ''}'),
+              actions: [
+                TextButton(onPressed: () => Get.back(), child: const Text('Plus tard')),
+                ElevatedButton(
+                  onPressed: () {
+                    Get.back();
+                    final url = response['data']['download_url'];
+                    if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                  },
+                  child: const Text('Mettre à jour'),
+                ),
+              ],
+            ),
+          );
+        });
+      }
+    }
+  } catch (_) {}
 }
 
 class MyApp extends StatelessWidget {

@@ -17,7 +17,7 @@ class SupportScreen extends StatelessWidget {
     },
     {
       'q': 'Comment fonctionne le parrainage ?',
-      'a': 'Partage ton code depuis l\'onglet Réseau. Quand quelqu\'un s\'inscrit avec ton code, tu gagnes 500 FCFA.',
+      'a': 'Partage ton code depuis l\'onglet Réseau. Quand quelqu\'un s\'inscrit avec ton code, tu gagnes 500 CDF.',
     },
     {
       'q': 'J\'ai oublié mon mot de passe, que faire ?',
@@ -32,13 +32,40 @@ class SupportScreen extends StatelessWidget {
   Future<void> _contactEmail() async {
     final uri = Uri(
       scheme: 'mailto',
-      path: 'jephbesaus07@gmail.com',
+      path: 'Supporttogetherwecan@gmail.com',
       query: 'subject=Support Together We Can',
     );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
       Get.snackbar('Erreur', 'Aucune application email disponible.');
+    }
+  }
+
+  Future<void> _contactWhatsApp() async {
+    final uri = Uri.parse('https://wa.me/243994435517');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      Get.snackbar('Erreur', 'Impossible d\'ouvrir WhatsApp.');
+    }
+  }
+
+  Future<void> _openFacebook() async {
+    final uri = Uri.parse('https://www.facebook.com/profile.php?id=61591784764691');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      Get.snackbar('Erreur', 'Impossible d\'ouvrir Facebook.');
+    }
+  }
+
+  Future<void> _openWhatsAppGroup() async {
+    final uri = Uri.parse('https://chat.whatsapp.com/FNm8J0RpVqV8TQ0QcQu1nn');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      Get.snackbar('Erreur', 'Impossible d\'ouvrir le groupe WhatsApp.');
     }
   }
 
@@ -49,7 +76,7 @@ class SupportScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('🆘 Support & Aide'),
+        title: const Text('Support & Aide'),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: ListView(
@@ -73,8 +100,35 @@ class SupportScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.email_outlined, color: AppConstants.primaryColor),
               title: const Text('Envoyer un email'),
-              subtitle: const Text('jephbesaus07@gmail.com'),
+              subtitle: const Text('Supporttogetherwecan@gmail.com'),
               onTap: _contactEmail,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.chat_outlined, color: AppConstants.primaryColor),
+              title: const Text('WhatsApp'),
+              subtitle: const Text('+243 994435517'),
+              onTap: _contactWhatsApp,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.facebook, color: AppConstants.primaryColor),
+              title: const Text('Facebook'),
+              subtitle: const Text('Together We Can'),
+              onTap: _openFacebook,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.group_outlined, color: AppConstants.primaryColor),
+              title: const Text('Groupe WhatsApp'),
+              subtitle: const Text('Rejoindre la communauté'),
+              onTap: _openWhatsAppGroup,
             ),
           ),
         ],

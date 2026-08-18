@@ -104,7 +104,7 @@ class _NetworkScreenState extends State<NetworkScreen>
     Share.share(
       'Rejoins-moi sur Together We Can avec mon code de parrainage : $code\n'
       'Télécharge l\'application : $link\n\n'
-      '🎁 Gagne 500 FCFA par parrainage !',
+      '🎁 Gagne 500 CDF par parrainage !',
     );
   }
 
@@ -161,7 +161,7 @@ class _NetworkScreenState extends State<NetworkScreen>
                                 ),
                                 Spacer(),
                                 Text(
-                                  '500 FCFA / parrain',
+                                  '500 CDF / parrain',
                                   style: TextStyle(
                                     color: Colors.white70,
                                     fontSize: 12,

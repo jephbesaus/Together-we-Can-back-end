@@ -10,6 +10,7 @@ import '../auth/login_screen.dart';
 import '../profile/edit_profile_screen.dart';
 import 'my_posts_screen.dart';
 import 'legal_content_screen.dart';
+import 'support_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -354,6 +355,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Politique de confidentialité',
                   content: LegalContentScreen.privacy,
                 )),
+          ),
+          _tile(
+            icon: Icons.help_outline,
+            title: 'Support / Aide',
+            subtitle: 'Contactez-nous',
+            onTap: () => Get.to(() => const SupportScreen()),
           ),
           const Divider(),
 
