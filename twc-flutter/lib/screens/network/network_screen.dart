@@ -221,7 +221,7 @@ class _NetworkScreenState extends State<NetworkScreen>
                               children: [
                                 Text(
                                   // Le backend renvoie 'referral_earnings', pas 'total_earnings'
-                                  'Total gagné: ${_referralInfo['referral_earnings'] ?? 0} FCFA',
+                                  'Total gagné: ${_referralInfo['referral_earnings'] ?? 0} CDF',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,

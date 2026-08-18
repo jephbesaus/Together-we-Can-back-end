@@ -73,6 +73,6 @@ class User extends Authenticatable
 
     public function getReferralLinkAttribute()
     {
-        return config('app.url') . '/register?ref=' . $this->referral_code;
+        return 'twc://register?ref=' . $this->referral_code;
     }
 }

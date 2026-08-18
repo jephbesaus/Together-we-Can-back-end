@@ -23,6 +23,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments;
+    if (args != null && args['referral_code'] != null) {
+      _referralController.text = args['referral_code'];
+    }
+  }
+
   Future<void> _register() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
