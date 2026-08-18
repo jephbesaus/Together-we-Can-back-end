@@ -16,7 +16,7 @@ class CourseDetailScreen extends StatefulWidget {
   State<CourseDetailScreen> createState() => _CourseDetailScreenState();
 }
 
-class _CourseDetailScreenState extends State<CourseDetailScreen> {
+class _CourseDetailScreenState extends State<CourseDetailScreen> with WidgetsBindingObserver {
   final ApiService _api = Get.find<ApiService>();
 
   Map<String, dynamic>? _course;
@@ -26,7 +26,21 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadCourse();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadCourse();
+    }
   }
 
   Future<void> _loadCourse() async {

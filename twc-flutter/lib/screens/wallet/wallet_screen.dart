@@ -13,7 +13,7 @@ class WalletScreen extends StatefulWidget {
   State<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen> {
+class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver {
   final ApiService _api = Get.find<ApiService>();
 
   double _balance = 0;
@@ -24,7 +24,21 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {

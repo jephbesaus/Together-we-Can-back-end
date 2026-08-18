@@ -96,6 +96,51 @@ Route::get('/ref/{code}', function ($code) {
     return response($html, 200)->header('Content-Type', 'text/html');
 });
 
+Route::get('/thank-you', function () {
+    $reference = request()->query('reference', '');
+    $type = request()->query('type', 'deposit');
+    $courseId = request()->query('courseId', '');
+
+    $deepLink = 'twc://payment?reference=' . urlencode($reference) . '&type=' . urlencode($type);
+    if ($courseId) {
+        $deepLink .= '&courseId=' . urlencode($courseId);
+    }
+
+    $html = '<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paiement confirmé</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0B0B0B; color: #fff; font-family: -apple-system, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .card { max-width: 400px; width: 90%; text-align: center; padding: 40px 24px; background: #1A1A1A; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,168,107,0.15); }
+  .check { font-size: 64px; margin-bottom: 16px; }
+  h1 { font-size: 22px; margin-bottom: 8px; color: #00A86B; }
+  p { color: #999; margin-bottom: 24px; line-height: 1.5; }
+  .btn { display: inline-block; background: #00A86B; color: #fff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 18px; font-weight: bold; transition: background 0.2s; }
+  .btn:hover { background: #008C5A; }
+  .hint { margin-top: 16px; color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="check">✅</div>
+  <h1>Paiement confirmé !</h1>
+  <p>Merci pour votre achat. Votre solde sera mis à jour automatiquement.</p>
+  <a href="' . htmlspecialchars($deepLink) . '" class="btn">Retour à l\'application</a>
+  <p class="hint">Si le bouton ne fonctionne pas, ouvrez manuellement l\'application Together We Can.</p>
+</div>
+<script>
+  setTimeout(function() { window.location.href = "' . addslashes($deepLink) . '"; }, 1500);
+</script>
+</body>
+</html>';
+
+    return response($html, 200)->header('Content-Type', 'text/html');
+})->name('thank-you');
+
 // Vérification technique de l'état du serveur (utile pour le monitoring),
 // séparée de la page d'accueil publique.
 Route::get('/status', function () {

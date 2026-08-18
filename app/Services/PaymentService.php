@@ -55,7 +55,7 @@ class PaymentService
                             'country_code' => 'CD',
                         ],
                         'payment_currency' => 'CDF',
-                        'redirect_url' => $storeUrl . '/thank-you',
+                        'redirect_url' => url('/thank-you?reference=' . $reference . '&type=deposit'),
                         'custom_metadata' => [
                             'user_id' => (string) $userId,
                             'reference' => $reference,
@@ -257,7 +257,7 @@ class PaymentService
                             'country_code' => 'CD',
                         ],
                         'payment_currency' => 'CDF',
-                        'redirect_url' => 'twc://payment?courseId=' . $courseId,
+                        'redirect_url' => url('/thank-you?reference=' . $reference . '&type=course&courseId=' . $courseId),
                         'custom_metadata' => [
                             'user_id' => (string) $userId,
                             'reference' => $reference,
