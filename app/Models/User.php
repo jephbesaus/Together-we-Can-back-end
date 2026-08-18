@@ -75,4 +75,16 @@ class User extends Authenticatable
     {
         return 'twc://register?ref=' . $this->referral_code;
     }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::retrieved(function ($model) {
+            if (is_null($model->getAttributes()['boost_balance'] ?? null)) {
+                $model->boost_balance = 0;
+                $model->saveQuietly();
+            }
+        });
+    }
 }

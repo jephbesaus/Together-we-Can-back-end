@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Services\FullSMMService;
 use App\Services\PaymentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class BoostController extends Controller
@@ -64,8 +65,11 @@ class BoostController extends Controller
     public function balance()
     {
         try {
-            return $this->successResponse(['boost_balance' => auth()->user()->boost_balance]);
+            $user = auth()->user();
+            $user->refresh();
+            return $this->successResponse(['boost_balance' => (float) ($user->boost_balance ?? 0)]);
         } catch (\Exception $e) {
+            Log::error('Boost balance error: ' . $e->getMessage());
             return $this->successResponse(['boost_balance' => 0]);
         }
     }
@@ -86,6 +90,7 @@ class BoostController extends Controller
         $service = $this->fullSMM->getService($request->service_id);
 
         if (!$service) {
+            Log::warning('Boost order: service not found', ['service_id' => $request->service_id]);
             return $this->errorResponse('Service not found.', 404);
         }
 
@@ -93,15 +98,37 @@ class BoostController extends Controller
         $totalPrice = ($pricePerUnit * $request->quantity) / 1000;
 
         $user = auth()->user();
+        $user->refresh();
+        $balance = (float) ($user->boost_balance ?? 0);
 
-        if ($user->boost_balance < $totalPrice) {
-            return $this->errorResponse('Insufficient balance.', 400);
+        Log::info('Boost order attempt', [
+            'user_id' => $user->id,
+            'boost_balance' => $balance,
+            'total_price' => $totalPrice,
+            'service_id' => $request->service_id,
+            'quantity' => $request->quantity,
+            'rate' => $pricePerUnit,
+        ]);
+
+        if ($balance < $totalPrice) {
+            Log::warning('Boost order: insufficient balance', [
+                'user_id' => $user->id,
+                'balance' => $balance,
+                'total_price' => $totalPrice,
+            ]);
+            return $this->errorResponse('Solde insuffisant.', 400);
         }
 
         $result = $this->fullSMM->placeOrder($request->service_id, $request->link, $request->quantity);
 
+        Log::info('FullSMM order result', [
+            'user_id' => $user->id,
+            'service_id' => $request->service_id,
+            'result' => $result,
+        ]);
+
         if (!$result) {
-            return $this->errorResponse('Failed to place order with provider.', 502);
+            return $this->errorResponse('Échec de la commande auprès du fournisseur.', 502);
         }
 
         $user->decrement('boost_balance', $totalPrice);
@@ -132,8 +159,15 @@ class BoostController extends Controller
             'completed_at' => now(),
         ]);
 
+        Log::info('Boost order placed successfully', [
+            'user_id' => $user->id,
+            'order_id' => $boostOrder->id,
+            'price' => $totalPrice,
+            'remaining_balance' => $user->fresh()->boost_balance,
+        ]);
+
         return $this->successResponse([
-            'message' => 'Order placed successfully.',
+            'message' => 'Commande passée avec succès.',
             'order' => $boostOrder,
         ], 201);
     }
@@ -190,7 +224,7 @@ class BoostController extends Controller
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:500',
             'email' => 'required|email',
-            'provider' => 'required|in:orange,mtn,vodacom,airtel,africell',
+            'provider' => 'required|in:orange,mtn,vodacom,airtel,africell,mpesa',
         ]);
 
         if ($validator->fails()) {

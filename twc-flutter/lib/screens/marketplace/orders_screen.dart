@@ -174,7 +174,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${order['quantity']} x ${order['formatted_total_price'] ?? '${order['total_price']} FCFA'}',
+                                    '${order['quantity']} x ${order['formatted_total_price'] ?? '${order['total_price']} CDF'}',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 13,

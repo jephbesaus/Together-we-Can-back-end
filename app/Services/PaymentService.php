@@ -331,13 +331,25 @@ class PaymentService
 
         if ($transaction->status === 'pending' && in_array($transaction->type, ['deposit', 'course_payment'])) {
             $minutesElapsed = $transaction->created_at->diffInMinutes(now());
-            if ($minutesElapsed >= 5) {
+            if ($minutesElapsed >= 1) {
+                $transaction->refresh();
+                if ($transaction->status !== 'pending') {
+                    return ['success' => true, 'status' => $transaction->status, 'transaction' => $transaction];
+                }
+
                 $user = User::find($transaction->user_id);
                 $transaction->update([
                     'status' => 'completed',
                     'completed_at' => now(),
                 ]);
                 $user->increment('boost_balance', $transaction->amount);
+
+                Log::info('Chariow auto-completed pending transaction', [
+                    'transaction_id' => $transactionId,
+                    'user_id' => $user->id,
+                    'amount' => $transaction->amount,
+                    'new_balance' => $user->fresh()->boost_balance,
+                ]);
 
                 $this->createNotification(
                     $user->id,

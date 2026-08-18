@@ -112,7 +112,7 @@ class _TransferScreenState extends State<TransferScreen> {
             TextField(
               controller: _amountController,
               decoration: const InputDecoration(
-                labelText: 'Montant (FCFA)',
+                labelText: 'Montant (CDF)',
                 hintText: '1000',
                 prefixIcon: Icon(Icons.money),
                 border: OutlineInputBorder(

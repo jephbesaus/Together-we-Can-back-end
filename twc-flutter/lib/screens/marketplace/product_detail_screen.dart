@@ -205,7 +205,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                         style: TextStyle(fontWeight: FontWeight.bold),
                                       ),
                                       Text(
-                                        '${(_product!.price * _quantity).toStringAsFixed(0)} FCFA',
+                                        '${(_product!.price * _quantity).toStringAsFixed(0)} CDF',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 18,

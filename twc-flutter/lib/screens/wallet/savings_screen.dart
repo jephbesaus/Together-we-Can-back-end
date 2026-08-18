@@ -72,7 +72,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${NumberFormat('#,##0', 'fr_FR').format(_savings)} FCFA',
+                        '${NumberFormat('#,##0', 'fr_FR').format(_savings)} CDF',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 32,

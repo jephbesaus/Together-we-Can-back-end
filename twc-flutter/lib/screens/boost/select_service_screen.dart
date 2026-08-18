@@ -103,7 +103,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                           children: [
                             Text('Min: ${service['min']} - Max: ${service['max']}'),
                             Text(
-                              'Prix: ${service['price_per_1000'] ?? 0} FCFA / 1000',
+                              'Prix: ${service['price_per_1000'] ?? 0} CDF / 1000',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: AppConstants.primaryColor,

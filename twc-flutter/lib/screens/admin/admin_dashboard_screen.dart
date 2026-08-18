@@ -11,6 +11,7 @@ import 'admin_boost_screen.dart';
 import 'admin_courses_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_announcements_screen.dart';
+import 'admin_news_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -104,6 +105,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         _buildQuickAction(Icons.book, 'Formations', () => Get.to(() => const AdminCoursesScreen())),
                         _buildQuickAction(Icons.flag, 'Signalements', () => Get.to(() => const AdminReportsScreen())),
                         _buildQuickAction(Icons.newspaper, 'Actualités', () => Get.to(() => const AdminAnnouncementsScreen())),
+                        _buildQuickAction(Icons.edit_note, 'Gérer les Actualités', () => Get.to(() => const AdminNewsScreen())),
                       ],
                     ),
                   ),
@@ -160,7 +162,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       },
       {
         'title': 'Revenus',
-        'value': '${NumberFormat('#,##0', 'fr_FR').format(financial['today_revenue'] ?? 0)} FCFA',
+        'value': '${NumberFormat('#,##0', 'fr_FR').format(financial['today_revenue'] ?? 0)} CDF',
         'subtitle': 'Aujourd\'hui',
         'icon': Icons.money,
         'color': Colors.green,

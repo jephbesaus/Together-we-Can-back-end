@@ -78,7 +78,7 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
                 TextField(
                   controller: priceController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Prix (FCFA, 0 = gratuit)'),
+                  decoration: const InputDecoration(labelText: 'Prix (CDF, 0 = gratuit)'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(

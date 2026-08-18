@@ -6,6 +6,7 @@ import '../../core/services/api_service.dart';
 import '../../core/models/post.dart';
 import '../../widgets/story_widget.dart';
 import '../../widgets/post_widget.dart';
+import '../../widgets/shimmer_loader.dart';
 import 'create_post_screen.dart';
 import '../notification/notification_screen.dart';
 import '../search/search_screen.dart';
@@ -112,7 +113,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       drawer: const AppDrawer(),
-      body: RefreshIndicator(
+      body: _isLoading
+          ? const ShimmerList(itemCount: 5)
+          : RefreshIndicator(
         onRefresh: _refresh,
         child: CustomScrollView(
           controller: _scrollController,

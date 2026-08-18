@@ -113,7 +113,7 @@ class _BoostOrderScreenState extends State<BoostOrderScreen> {
                   const SizedBox(height: 4),
                   Text('Min: $_min • Max: $_max', style: TextStyle(color: Colors.grey[600])),
                   Text(
-                    'Prix: ${_pricePer1000.toStringAsFixed(0)} FCFA / 1000',
+                    'Prix: ${_pricePer1000.toStringAsFixed(0)} CDF / 1000',
                     style: const TextStyle(color: AppConstants.primaryColor, fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -152,7 +152,7 @@ class _BoostOrderScreenState extends State<BoostOrderScreen> {
                 children: [
                   const Text('Prix estimé', style: TextStyle(fontWeight: FontWeight.w600)),
                   Text(
-                    '${_estimatedPrice.toStringAsFixed(0)} FCFA',
+                    '${_estimatedPrice.toStringAsFixed(0)} CDF',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,

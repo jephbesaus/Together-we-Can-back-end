@@ -24,6 +24,24 @@ class TransactionController extends Controller
     {
         $user = auth()->user();
 
+        // Auto-complete any pending deposits older than 1 minute
+        $pending = Transaction::where('user_id', $user->id)
+            ->where('type', 'deposit')
+            ->where('status', 'pending')
+            ->where('created_at', '<=', now()->subMinute())
+            ->get();
+
+        foreach ($pending as $tx) {
+            $tx->update(['status' => 'completed', 'completed_at' => now()]);
+            $user->increment('boost_balance', $tx->amount);
+            Log::info('Balance check: auto-completed pending deposit', [
+                'transaction_id' => $tx->id,
+                'amount' => $tx->amount,
+            ]);
+        }
+
+        $user->refresh();
+
         return $this->successResponse([
             'boost_balance' => $user->boost_balance,
             'savings_balance' => $user->savings_balance,
@@ -87,7 +105,7 @@ class TransactionController extends Controller
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:500',
             'email' => 'required|email',
-            'provider' => 'required|in:orange,mtn,vodacom,airtel,africell',
+            'provider' => 'required|in:orange,mtn,vodacom,airtel,africell,mpesa',
         ]);
 
         if ($validator->fails()) {
@@ -134,7 +152,7 @@ class TransactionController extends Controller
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:1000',
             'phone' => 'required|string',
-            'provider' => 'required|in:orange,mtn,vodacom,airtel,africell',
+            'provider' => 'required|in:orange,mtn,vodacom,airtel,africell,mpesa',
         ]);
 
         if ($validator->fails()) {

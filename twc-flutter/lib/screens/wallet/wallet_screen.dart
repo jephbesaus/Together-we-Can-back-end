@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import 'withdraw_screen.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -227,10 +228,23 @@ class _WalletScreenState extends State<WalletScreen> {
                 ],
               ),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Get.toNamed('/transfer'),
-        backgroundColor: AppConstants.primaryColor,
-        child: const Icon(Icons.send, color: Colors.white),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'withdraw',
+            onPressed: () => Get.to(() => const WithdrawScreen()),
+            backgroundColor: AppConstants.primaryDark,
+            child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          FloatingActionButton(
+            heroTag: 'transfer',
+            onPressed: () => Get.toNamed('/transfer'),
+            backgroundColor: AppConstants.primaryColor,
+            child: const Icon(Icons.send, color: Colors.white),
+          ),
+        ],
       ),
     );
   }

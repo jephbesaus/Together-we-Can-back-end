@@ -73,7 +73,7 @@ class _MarketingScreenState extends State<MarketingScreen> {
                 TextField(
                   controller: budgetController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Budget (FCFA, débité de votre solde Boost)'),
+                  decoration: const InputDecoration(labelText: 'Budget (CDF, débité de votre solde Boost)'),
                 ),
                 const SizedBox(height: 12),
                 if (pickedImage != null)

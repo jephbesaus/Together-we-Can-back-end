@@ -47,7 +47,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       return;
     }
     if (price == null || price <= 0) {
-      Get.snackbar('Erreur', 'Entrez un prix valide (FCFA).');
+      Get.snackbar('Erreur', 'Entrez un prix valide (CDF).');
       return;
     }
     if (_selectedImages.isEmpty) {
@@ -179,7 +179,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             const SizedBox(height: 16),
             _field(_nameController, 'Nom du produit', Icons.sell_outlined),
             const SizedBox(height: 12),
-            _field(_priceController, 'Prix (FCFA)', Icons.payments_outlined,
+            _field(_priceController, 'Prix (CDF)', Icons.payments_outlined,
                 keyboardType: TextInputType.number),
             const SizedBox(height: 12),
             _field(_categoryController, 'Catégorie', Icons.category_outlined),

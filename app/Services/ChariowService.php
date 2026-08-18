@@ -124,7 +124,18 @@ class ChariowService
                 ]);
             }
 
+            $previousBalance = (float) ($user->boost_balance ?? 0);
             $user->increment('boost_balance', $amount);
+            $newBalance = (float) $user->fresh()->boost_balance;
+
+            Log::info('Chariow: solde crédité.', [
+                'user_id' => $user->id,
+                'amount' => $amount,
+                'previous_balance' => $previousBalance,
+                'new_balance' => $newBalance,
+                'sale_id' => $saleId,
+                'reference' => $reference,
+            ]);
 
             Notification::create([
                 'user_id' => $user->id,
@@ -135,12 +146,6 @@ class ChariowService
                     'sale_id' => $saleId,
                 ]),
                 'has_sound' => true,
-            ]);
-
-            Log::info('Chariow: solde crédité.', [
-                'user_id' => $user->id,
-                'amount' => $amount,
-                'sale_id' => $saleId,
             ]);
 
             return ['status' => 'success'];

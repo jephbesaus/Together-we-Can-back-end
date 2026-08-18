@@ -23,6 +23,9 @@ import '../screens/wallet/transactions_screen.dart';
 import '../screens/wallet/transfer_screen.dart';
 import '../screens/messages/search_messages_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/admin/admin_news_screen.dart';
+import '../screens/course/lesson_player_screen.dart';
+import '../screens/wallet/withdraw_screen.dart';
 import '../screens/menu/settings_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 
@@ -56,6 +59,9 @@ class AppRoutes {
   static const savings = '/savings';
   static const transactions = '/transactions';
   static const searchMessages = '/search-messages';
+  static const lessonPlayer = '/course/lesson';
+  static const withdraw = '/wallet/withdraw';
+  static const adminNews = '/admin/news';
 
   static final routes = [
     GetPage(name: splash, page: () => const SplashScreen()),
@@ -89,5 +95,22 @@ class AppRoutes {
     GetPage(name: savings, page: () => const SavingsScreen()),
     GetPage(name: transactions, page: () => const TransactionsScreen()),
     GetPage(name: searchMessages, page: () => const SearchMessagesScreen()),
+    GetPage(name: lessonPlayer, page: () {
+      final args = Get.arguments as Map<String, dynamic>;
+      return LessonPlayerScreen(
+        courseId: args['courseId'],
+        sectionId: args['sectionId'],
+        lessonId: args['lessonId'],
+        lessonTitle: args['lessonTitle'] ?? 'Leçon',
+        lessonType: args['lessonType'] ?? 'text',
+        videoUrl: args['videoUrl'],
+        content: args['content'],
+        questions: args['questions'] != null
+            ? List<Map<String, dynamic>>.from(args['questions'])
+            : null,
+      );
+    }),
+    GetPage(name: withdraw, page: () => const WithdrawScreen()),
+    GetPage(name: adminNews, page: () => const AdminNewsScreen()),
   ];
 }
