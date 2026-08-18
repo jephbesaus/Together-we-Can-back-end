@@ -352,13 +352,13 @@ class CourseController extends Controller
         $isCompleted = $newProgress >= 90;
         $completedAt = $isCompleted ? now() : null;
 
-        $existing = DB::table('lesson_progress')
+        $existing = DB::table('lesson_progresses')
             ->where('user_id', auth()->id())
             ->where('lesson_id', $lessonId)
             ->first();
 
         if ($existing) {
-            DB::table('lesson_progress')->where('id', $existing->id)->update([
+            DB::table('lesson_progresses')->where('id', $existing->id)->update([
                 'progress' => $newProgress,
                 'last_position' => $request->position,
                 'watched_duration' => $request->duration,
@@ -367,7 +367,7 @@ class CourseController extends Controller
                 'updated_at' => now(),
             ]);
         } else {
-            DB::table('lesson_progress')->insert([
+            DB::table('lesson_progresses')->insert([
                 'user_id' => auth()->id(),
                 'lesson_id' => $lessonId,
                 'progress' => $newProgress,
@@ -396,7 +396,7 @@ class CourseController extends Controller
                 ->where('is_published', true)
                 ->pluck('id');
 
-            $completedLessons = DB::table('lesson_progress')
+            $completedLessons = DB::table('lesson_progresses')
                 ->where('user_id', auth()->id())
                 ->whereIn('lesson_id', $lessonIds)
                 ->where('is_completed', true)
