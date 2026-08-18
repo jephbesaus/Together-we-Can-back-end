@@ -377,6 +377,70 @@ class PostController extends Controller
         ]);
     }
 
+    public function destroyStory($id)
+    {
+        $post = Post::where('user_id', auth()->id())->where('is_story', true)->find($id);
+
+        if (!$post) {
+            return $this->errorResponse('Story non trouvée ou vous n\'êtes pas le propriétaire.', 404);
+        }
+
+        if ($post->media_url) {
+            $mediaUrls = json_decode($post->media_url, true) ?? [$post->media_url];
+            foreach ($mediaUrls as $url) {
+                $path = str_replace('/storage/', 'public/', $url);
+                Storage::delete($path);
+            }
+        }
+
+        $post->delete();
+
+        return $this->successResponse(['message' => 'Story supprimée.']);
+    }
+
+    public function toggleStoryLike($id)
+    {
+        $story = Post::where('is_story', true)->find($id);
+
+        if (!$story) {
+            return $this->errorResponse('Story non trouvée.', 404);
+        }
+
+        $userId = auth()->id();
+        $existingLike = Like::where('user_id', $userId)
+            ->where('post_id', $id)
+            ->whereNull('comment_id')
+            ->first();
+
+        if ($existingLike) {
+            $existingLike->delete();
+            return $this->successResponse([
+                'liked' => false,
+                'likes_count' => Like::where('post_id', $id)->whereNull('comment_id')->count(),
+            ]);
+        }
+
+        Like::create([
+            'user_id' => $userId,
+            'post_id' => $id,
+        ]);
+
+        if ($story->user_id !== $userId) {
+            Notification::create([
+                'user_id' => $story->user_id,
+                'type' => 'like',
+                'message' => auth()->user()->name . ' a aimé votre Story.',
+                'data' => json_encode(['post_id' => $story->id, 'user_id' => $userId]),
+                'has_sound' => true,
+            ]);
+        }
+
+        return $this->successResponse([
+            'liked' => true,
+            'likes_count' => Like::where('post_id', $id)->whereNull('comment_id')->count(),
+        ]);
+    }
+
     private function notifyFollowers($post)
     {
         $followers = Follow::where('following_id', $post->user_id)

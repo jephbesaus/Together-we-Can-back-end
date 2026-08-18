@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Notification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -86,58 +87,63 @@ class ChariowService
 
         $reference = $metadata['reference'] ?? $saleId ?? ('CHR-' . Str::random(12));
 
-        $existing = Transaction::where('reference', $reference)->first();
-        if ($existing && $existing->status === 'completed') {
-            Log::info('Chariow webhook: transaction déjà traitée.', ['reference' => $reference]);
-            return ['status' => 'already_processed'];
-        }
+        return DB::transaction(function () use ($user, $amount, $saleId, $reference, $metadata, $payload) {
+            $existing = Transaction::where('reference', $reference)->lockForUpdate()->first();
 
-        if ($existing) {
-            $existing->update([
-                'status' => 'completed',
-                'completed_at' => now(),
-                'metadata' => array_merge($existing->metadata ?? [], [
-                    'chariow_payload' => $payload,
-                    'chariow_sale_id' => $saleId,
-                ]),
-            ]);
-            $transaction = $existing;
-        } else {
-            $transaction = Transaction::create([
+            if ($existing && $existing->status === 'completed') {
+                Log::info('Chariow webhook: transaction déjà traitée (idempotent).', ['reference' => $reference]);
+                return ['status' => 'already_processed'];
+            }
+
+            if ($existing) {
+                $existing->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                    'metadata' => array_merge($existing->metadata ?? [], [
+                        'chariow_payload' => $payload,
+                        'chariow_sale_id' => $saleId,
+                        'pulse_processed_at' => now()->toDateTimeString(),
+                    ]),
+                ]);
+                $transaction = $existing;
+            } else {
+                $transaction = Transaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'deposit',
+                    'amount' => $amount,
+                    'reference' => $reference,
+                    'payment_method' => 'chariow',
+                    'status' => 'completed',
+                    'description' => 'Dépôt via Chariow confirmé par webhook',
+                    'metadata' => json_encode([
+                        'chariow_payload' => $payload,
+                        'chariow_sale_id' => $saleId,
+                        'pulse_processed_at' => now()->toDateTimeString(),
+                    ]),
+                    'completed_at' => now(),
+                ]);
+            }
+
+            $user->increment('boost_balance', $amount);
+
+            Notification::create([
                 'user_id' => $user->id,
-                'type' => 'deposit',
-                'amount' => $amount,
-                'reference' => $reference,
-                'payment_method' => 'chariow',
-                'status' => 'completed',
-                'description' => 'Dépôt via Chariow confirmé par webhook',
-                'metadata' => json_encode([
-                    'chariow_payload' => $payload,
-                    'chariow_sale_id' => $saleId,
+                'type' => 'payment',
+                'message' => 'Votre paiement de ' . number_format($amount, 0) . ' CDF a été confirmé via Chariow.',
+                'data' => json_encode([
+                    'transaction_id' => $transaction->id,
+                    'sale_id' => $saleId,
                 ]),
-                'completed_at' => now(),
+                'has_sound' => true,
             ]);
-        }
 
-        $user->increment('boost_balance', $amount);
-
-        Notification::create([
-            'user_id' => $user->id,
-            'type' => 'payment',
-            'message' => 'Votre paiement de ' . number_format($amount, 0) . ' CDF a été confirmé via Chariow.',
-            'data' => json_encode([
-                'transaction_id' => $transaction->id,
+            Log::info('Chariow: solde crédité.', [
+                'user_id' => $user->id,
+                'amount' => $amount,
                 'sale_id' => $saleId,
-            ]),
-            'has_sound' => true,
-        ]);
+            ]);
 
-        Log::info('Chariow: solde crédité.', [
-            'user_id' => $user->id,
-            'amount' => $amount,
-            'sale_id' => $saleId,
-        ]);
-
-        return ['status' => 'success'];
+            return ['status' => 'success'];
+        });
     }
 }

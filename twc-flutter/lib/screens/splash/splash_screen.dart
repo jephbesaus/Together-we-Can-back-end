@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../app/constants.dart';
-import '../../app/routes.dart';
 import '../../core/services/auth_service.dart';
+import '../../app/routes.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -11,34 +10,44 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _rotateAnimation;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2200),
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.5, curve: Curves.easeIn)),
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+      ),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.6, curve: Curves.elasticOut)),
+    _scaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.5, curve: Curves.elasticOut),
+      ),
     );
 
-    _rotateAnimation = Tween<double>(begin: -0.1, end: 0.0).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.5, curve: Curves.easeOut)),
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
+      ),
     );
 
     _controller.forward();
-    _checkAuth();
+    _navigateAfterDelay();
   }
 
   @override
@@ -47,8 +56,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  Future<void> _checkAuth() async {
-    await Future.delayed(const Duration(milliseconds: 2500));
+  Future<void> _navigateAfterDelay() async {
+    await Future.delayed(const Duration(milliseconds: 2800));
+    if (!mounted) return;
+
     final auth = Get.find<AuthService>();
     final isLoggedIn = await auth.isLoggedIn();
 
@@ -69,11 +80,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
               Color(0xFF00A86B),
-              Color(0xFF007A4D),
+              Color(0xFF008C5A),
               Color(0xFF004D33),
             ],
           ),
@@ -89,25 +100,26 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   children: [
                     Transform.scale(
                       scale: _scaleAnimation.value,
-                      child: Transform.rotate(
-                        angle: _rotateAnimation.value,
+                      child: ScaleTransition(
+                        scale: _pulseAnimation,
                         child: Container(
-                          width: 160,
-                          height: 160,
+                          width: 220,
+                          height: 220,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 40,
-                                offset: const Offset(0, 15),
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 50,
+                                spreadRadius: 5,
+                                offset: const Offset(0, 20),
                               ),
                             ],
                           ),
                           child: ClipOval(
                             child: Padding(
-                              padding: const EdgeInsets.all(20),
+                              padding: const EdgeInsets.all(30),
                               child: Image.asset(
                                 'assets/images/logo.png',
                                 fit: BoxFit.contain,
@@ -117,36 +129,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ),
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    const Text(
-                      'Together We Can',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                        shadows: [
-                          Shadow(blurRadius: 10, color: Colors.black26, offset: Offset(0, 3)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'La communauté qui réunit',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 14,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
                     const SizedBox(height: 50),
                     SizedBox(
-                      width: 40,
-                      height: 40,
+                      width: 36,
+                      height: 36,
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white.withValues(alpha: 0.8),
+                          Colors.white.withValues(alpha: 0.9),
                         ),
                       ),
                     ),
