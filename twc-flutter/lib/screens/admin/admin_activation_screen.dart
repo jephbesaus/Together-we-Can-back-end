@@ -15,6 +15,23 @@ class _AdminActivationScreenState extends State<AdminActivationScreen> {
   final ApiService _api = Get.find<ApiService>();
   final TextEditingController _codeController = TextEditingController();
   bool _isLoading = false;
+  bool _isAlreadyActivated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkActivation();
+  }
+
+  Future<void> _checkActivation() async {
+    try {
+      final response = await _api.get('/admin/dashboard');
+      if (response['success']) {
+        setState(() => _isAlreadyActivated = true);
+        Get.offAll(() => const AdminDashboardScreen());
+      }
+    } catch (_) {}
+  }
 
   Future<void> _activate() async {
     if (_codeController.text.trim().isEmpty) {

@@ -103,7 +103,11 @@ class _NetworkScreenState extends State<NetworkScreen>
     final link = _referralInfo['referral_link'] ?? '';
     Share.share(
       'Rejoins-moi sur Together We Can avec mon code de parrainage : $code\n'
-      'Télécharge l\'application : $link\n\n'
+      'Lien d\'inscription : $link\n\n'
+      '1. Télécharge l\'application\n'
+      '2. Crée ton compte\n'
+      '3. Entre le code $code lors de l\'inscription\n'
+      '4. Tu reçois 500 CDF automatiquement !\n\n'
       '🎁 Gagne 500 CDF par parrainage !',
     );
   }
