@@ -213,6 +213,113 @@ class PaymentService
         }
     }
 
+    public function coursePayment($userId, $courseId, $amount, $email)
+    {
+        $user = User::find($userId);
+        if (!$user) throw new \Exception('Utilisateur non trouvé.');
+
+        $reference = 'CHR-CRS-' . Str::random(16);
+
+        $transaction = Transaction::create([
+            'user_id' => $userId,
+            'type' => 'course_payment',
+            'amount' => $amount,
+            'reference' => $reference,
+            'payment_method' => 'chariow',
+            'status' => 'pending',
+            'description' => 'Paiement formation #' . $courseId,
+            'metadata' => json_encode([
+                'course_id' => $courseId,
+                'email' => $email,
+                'amount' => $amount,
+                'initiated_at' => now()->toISOString(),
+            ]),
+        ]);
+
+        try {
+            $storeUrl = config('chariow.store_url') ?: 'https://epazzsvw.mychariow.store';
+            $depositProductId = config('chariow.deposit_product_id') ?: 'prd_dd7c35ic';
+            $apiKey = config('chariow.api_key');
+
+            if ($apiKey) {
+                $response = \Illuminate\Support\Facades\Http::timeout(15)
+                    ->withHeaders([
+                        'Authorization' => 'Bearer ' . $apiKey,
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post('https://api.chariow.com/v1/checkout', [
+                        'product_id' => $depositProductId,
+                        'email' => $email,
+                        'first_name' => $user->name ?? 'Utilisateur',
+                        'last_name' => 'TWC',
+                        'phone' => [
+                            'number' => $user->phone ?? '000000000',
+                            'country_code' => 'CD',
+                        ],
+                        'payment_currency' => 'CDF',
+                        'redirect_url' => 'twc://payment?courseId=' . $courseId,
+                        'custom_metadata' => [
+                            'user_id' => (string) $userId,
+                            'reference' => $reference,
+                            'type' => 'course_payment',
+                            'course_id' => (string) $courseId,
+                            'amount' => (string) $amount,
+                        ],
+                    ]);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    $step = $data['data']['step'] ?? null;
+
+                    if ($step === 'payment') {
+                        $checkoutUrl = $data['data']['payment']['checkout_url'] ?? null;
+                        $saleId = $data['data']['purchase']['id'] ?? null;
+
+                        $transaction->update([
+                            'metadata' => array_merge($transaction->metadata ?? [], [
+                                'chariow_sale_id' => $saleId,
+                                'checkout_url' => $checkoutUrl,
+                            ]),
+                        ]);
+
+                        return [
+                            'success' => true,
+                            'transaction' => $transaction,
+                            'payment_url' => $checkoutUrl,
+                        ];
+                    }
+
+                    if ($step === 'completed') {
+                        $transaction->update([
+                            'status' => 'completed',
+                            'completed_at' => now(),
+                        ]);
+
+                        return [
+                            'success' => true,
+                            'transaction' => $transaction,
+                            'payment_url' => null,
+                            'message' => 'Paiement confirmé.',
+                        ];
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Chariow API course checkout failed, using store redirect: ' . $e->getMessage());
+        }
+
+        $storeUrl = config('chariow.store_url') ?: 'https://epazzsvw.mychariow.store';
+        $depositProductId = config('chariow.deposit_product_id') ?: 'prd_dd7c35ic';
+        $paymentUrl = rtrim($storeUrl, '/') . '/' . $depositProductId;
+
+        return [
+            'success' => true,
+            'transaction' => $transaction,
+            'payment_url' => $paymentUrl,
+            'message' => 'Redirection vers la boutique Chariow...',
+        ];
+    }
+
     public function checkChariowStatus($transactionId)
     {
         $transaction = Transaction::find($transactionId);
@@ -222,7 +329,7 @@ class PaymentService
             return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
         }
 
-        if ($transaction->status === 'pending' && $transaction->type === 'deposit') {
+        if ($transaction->status === 'pending' && in_array($transaction->type, ['deposit', 'course_payment'])) {
             $minutesElapsed = $transaction->created_at->diffInMinutes(now());
             if ($minutesElapsed >= 5) {
                 $user = User::find($transaction->user_id);

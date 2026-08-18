@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/media_service.dart';
@@ -243,8 +244,27 @@ class _CoursesScreenState extends State<CoursesScreen> {
     try {
       final response = await _api.post('/courses/$courseId/enroll');
       if (response['success']) {
-        Get.snackbar('Succès', 'Inscription réussie !');
-        _loadCourses();
+        final data = response['data'];
+        if (data['requires_payment'] == true) {
+          final paymentUrl = data['payment_url'];
+          final txId = data['transaction_id'];
+          if (paymentUrl != null) {
+            Get.snackbar('Paiement', 'Redirection vers Chariow...');
+            launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
+            if (txId != null) {
+              Future.delayed(const Duration(seconds: 10), () async {
+                try {
+                  await _api.get('/transactions/$txId/check-status');
+                  await _api.post('/courses/$courseId/confirm-enrollment');
+                  _loadCourses();
+                } catch (_) {}
+              });
+            }
+          }
+        } else {
+          Get.snackbar('Succès', 'Inscription réussie !');
+          _loadCourses();
+        }
       } else {
         Get.snackbar(
           'Erreur',

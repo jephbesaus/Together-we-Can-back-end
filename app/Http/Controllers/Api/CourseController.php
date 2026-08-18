@@ -9,6 +9,7 @@ use App\Models\CourseReview;
 use App\Models\LessonProgress;
 use App\Models\Transaction;
 use App\Services\CertificateService;
+use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -119,22 +120,92 @@ class CourseController extends Controller
 
         if (!$course->is_free) {
             $user = auth()->user();
-            if ($user->boost_balance < $course->price) {
-                return $this->errorResponse('Solde insuffisant.', 400);
-            }
-            $user->decrement('boost_balance', $course->price);
 
-            Transaction::create([
-                'user_id' => $userId,
-                'type' => 'course_payment',
-                'amount' => $course->price,
-                'reference' => 'CRS-' . strtoupper(uniqid()),
-                'payment_method' => 'wallet',
-                'status' => 'completed',
-                'description' => 'Achat formation : ' . $course->title,
-                'completed_at' => now(),
-                'metadata' => json_encode(['course_id' => $course->id]),
+            if ($user->boost_balance >= $course->price) {
+                $user->decrement('boost_balance', $course->price);
+
+                Transaction::create([
+                    'user_id' => $userId,
+                    'type' => 'course_payment',
+                    'amount' => $course->price,
+                    'reference' => 'CRS-' . strtoupper(uniqid()),
+                    'payment_method' => 'wallet',
+                    'status' => 'completed',
+                    'description' => 'Achat formation : ' . $course->title,
+                    'completed_at' => now(),
+                    'metadata' => json_encode(['course_id' => $course->id]),
+                ]);
+
+                $enrollment = CourseEnrollment::create([
+                    'course_id' => $id,
+                    'user_id' => $userId,
+                    'progress' => 0,
+                    'is_completed' => false,
+                    'last_accessed_at' => now(),
+                ]);
+
+                $course->incrementStudents();
+
+                return $this->successResponse([
+                    'message' => 'Inscription réussie.',
+                    'enrollment' => $enrollment,
+                ], 201);
+            }
+
+            $paymentService = app(PaymentService::class);
+            $result = $paymentService->coursePayment(
+                $userId,
+                $course->id,
+                $course->price,
+                $user->email
+            );
+
+            return $this->successResponse([
+                'message' => 'Redirection vers le paiement.',
+                'payment_url' => $result['payment_url'],
+                'transaction_id' => $result['transaction']['id'] ?? null,
+                'requires_payment' => true,
             ]);
+        }
+
+        $enrollment = CourseEnrollment::create([
+            'course_id' => $id,
+            'user_id' => $userId,
+            'progress' => 0,
+            'is_completed' => false,
+            'last_accessed_at' => now(),
+        ]);
+
+        $course->incrementStudents();
+
+        return $this->successResponse([
+            'message' => 'Inscription réussie.',
+            'enrollment' => $enrollment,
+        ], 201);
+    }
+
+    public function confirmEnrollment($id)
+    {
+        $course = Course::published()->find($id);
+        if (!$course) {
+            return $this->errorResponse('Formation non trouvée.', 404);
+        }
+
+        $userId = auth()->id();
+        $existing = CourseEnrollment::where('course_id', $id)->where('user_id', $userId)->first();
+        if ($existing) {
+            return $this->successResponse(['enrollment' => $existing, 'message' => 'Déjà inscrit.']);
+        }
+
+        $pendingTx = Transaction::where('user_id', $userId)
+            ->where('type', 'course_payment')
+            ->where('status', 'completed')
+            ->where("metadata->>'course_id'", (string) $id)
+            ->latest()
+            ->first();
+
+        if (!$pendingTx) {
+            return $this->errorResponse('Paiement non confirmé. Veuillez réessayer.', 400);
         }
 
         $enrollment = CourseEnrollment::create([

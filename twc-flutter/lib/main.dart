@@ -8,6 +8,7 @@ import 'core/services/fcm_service.dart';
 import 'core/services/api_service.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/connectivity_service.dart';
+import 'core/services/deep_link_service.dart';
 import 'core/controllers/notification_controller.dart';
 import 'core/controllers/theme_controller.dart';
 import 'core/controllers/locale_controller.dart';
@@ -25,6 +26,9 @@ void main() async {
   // internet" dès que le réseau disparaît (style Facebook).
   final connectivity = Get.put(ConnectivityService(), permanent: true);
   connectivity.init();
+
+  // Deep links (retour Chariow après paiement)
+  Get.put(DeepLinkService(), permanent: true)..init();
 
   // L'app démarre immédiatement, sans attendre Firebase/FCM.
   // Si Firebase n'est pas configuré côté Android (google-services.json manquant,

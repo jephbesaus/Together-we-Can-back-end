@@ -33,6 +33,7 @@ dependencies:
   pusher_channels_flutter: ^2.2.1
   url_launcher: ^6.2.4
   share_plus: ^7.2.2
+  app_links: ^6.3.0
 
   # Image & Video
   image_picker: ^1.0.5

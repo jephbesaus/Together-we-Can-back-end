@@ -108,6 +108,7 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
     Route::get('/courses/categories', [CourseController::class, 'categories']);
     Route::get('/courses/{id}', [CourseController::class, 'show']);
     Route::post('/courses/{id}/enroll', [CourseController::class, 'enroll']);
+    Route::post('/courses/{id}/confirm-enrollment', [CourseController::class, 'confirmEnrollment']);
     Route::get('/courses/my-courses', [CourseController::class, 'myCourses']);
     Route::post('/courses/{courseId}/lessons/{lessonId}/progress', [CourseController::class, 'updateProgress']);
     Route::post('/courses/{id}/review', [CourseController::class, 'addReview']);
