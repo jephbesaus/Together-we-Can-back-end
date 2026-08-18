@@ -261,6 +261,7 @@ class InstructorController extends Controller
 
     public function addLesson(Request $request, $courseId, $sectionId)
     {
+        try {
         $course = Course::where('instructor_id', auth()->id())->find($courseId);
 
         if (!$course) {
@@ -322,12 +323,20 @@ class InstructorController extends Controller
             'is_published' => true,
         ]);
 
-        $this->recalculateCourseDuration($courseId);
+        try {
+            $this->recalculateCourseDuration($courseId);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('recalculateCourseDuration failed: ' . $e->getMessage());
+        }
 
         return $this->successResponse([
             'message' => 'Leçon ajoutée.',
             'lesson' => $lesson,
         ], 201);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('addLesson error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return $this->errorResponse('Erreur serveur: ' . $e->getMessage(), 500);
+        }
     }
 
     public function updateLesson(Request $request, $courseId, $lessonId)

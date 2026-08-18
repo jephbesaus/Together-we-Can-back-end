@@ -92,15 +92,20 @@ class CourseController extends Controller
 
     public function show($id)
     {
-        $course = Course::with(['instructor', 'sections.lessons', 'reviews.user'])
-            ->published()
-            ->find($id);
+        try {
+            $course = Course::with(['instructor', 'sections.lessons', 'reviews.user'])
+                ->published()
+                ->find($id);
 
-        if (!$course) {
-            return $this->errorResponse('Formation non trouvée.', 404);
+            if (!$course) {
+                return $this->errorResponse('Formation non trouvée.', 404);
+            }
+
+            return $this->successResponse(['course' => $course]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Course show error: ' . $e->getMessage());
+            return $this->errorResponse('Erreur lors du chargement: ' . $e->getMessage(), 500);
         }
-
-        return $this->successResponse(['course' => $course]);
     }
 
     public function enroll($id)
