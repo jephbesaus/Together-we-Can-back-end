@@ -88,6 +88,7 @@ php artisan route:clear
 php artisan view:clear
 php artisan cache:clear
 php artisan migrate --force
+php artisan courses:seed-demo || true
 php artisan storage:link || true
 
 apache2-foreground
