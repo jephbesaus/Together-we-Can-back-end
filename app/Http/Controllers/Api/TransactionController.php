@@ -9,6 +9,7 @@ use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class TransactionController extends Controller
@@ -26,7 +27,8 @@ class TransactionController extends Controller
     {
         $user = auth()->user();
 
-        // Auto-complete any pending deposits older than 1 minute (exclude manual deposits)
+        // Auto-complete pending deposits older than 1 minute (exclude manual)
+        // Use atomic update to prevent double-crediting race condition
         $pending = Transaction::where('user_id', $user->id)
             ->where('type', 'deposit')
             ->where('status', 'pending')
@@ -35,12 +37,17 @@ class TransactionController extends Controller
             ->get();
 
         foreach ($pending as $tx) {
-            $tx->update(['status' => 'completed', 'completed_at' => now()]);
-            $user->increment('boost_balance', $tx->amount);
-            Log::info('Balance check: auto-completed pending deposit', [
-                'transaction_id' => $tx->id,
-                'amount' => $tx->amount,
-            ]);
+            $updated = Transaction::where('id', $tx->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'completed', 'completed_at' => now()]);
+
+            if ($updated) {
+                $user->increment('boost_balance', $tx->amount);
+                Log::info('Balance check: auto-completed pending deposit', [
+                    'transaction_id' => $tx->id,
+                    'amount' => $tx->amount,
+                ]);
+            }
         }
 
         $user->refresh();
@@ -209,6 +216,8 @@ class TransactionController extends Controller
             'amount' => 'required|numeric|min:500',
             'reference' => 'required|string|max:255',
             'provider' => 'required|in:orange,mtn,vodacom,airtel,africell,mpesa',
+            'last_name' => 'nullable|string|max:100',
+            'first_name' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -229,6 +238,8 @@ class TransactionController extends Controller
                 'manual' => true,
                 'chariow_reference' => $request->reference,
                 'provider' => $request->provider,
+                'last_name' => $request->last_name,
+                'first_name' => $request->first_name,
                 'submitted_at' => now()->toISOString(),
             ]),
         ]);

@@ -327,6 +327,8 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
     final amountController = TextEditingController();
     final emailController = TextEditingController();
     final referenceController = TextEditingController();
+    final lastNameController = TextEditingController();
+    final firstNameController = TextEditingController();
     String selectedProvider = 'orange';
     bool isManual = false;
 
@@ -436,11 +438,26 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
 
                 if (isManual) ...[
                   const SizedBox(height: 16),
-                  // Mode manuel : ID Chariow
+                  TextField(
+                    controller: lastNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom',
+                      hintText: 'Votre nom de famille',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: firstNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Prénom',
+                      hintText: 'Votre prénom',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: referenceController,
                     decoration: const InputDecoration(
-                      labelText: 'ID de transaction Chariow',
+                      labelText: 'ID de la transaction',
                       hintText: 'Collez l\'ID reçu après le paiement',
                     ),
                   ),
@@ -472,6 +489,8 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
                 if (isManual) {
                   // Mode manuel
                   final reference = referenceController.text.trim();
+                  final lastName = lastNameController.text.trim();
+                  final firstName = firstNameController.text.trim();
                   if (reference.isEmpty) {
                     Get.snackbar('Erreur', 'L\'ID de transaction est requis.');
                     return;
@@ -482,6 +501,8 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
                       'amount': amount,
                       'reference': reference,
                       'provider': selectedProvider,
+                      'last_name': lastName.isNotEmpty ? lastName : null,
+                      'first_name': firstName.isNotEmpty ? firstName : null,
                     });
 
                     if (response['success']) {

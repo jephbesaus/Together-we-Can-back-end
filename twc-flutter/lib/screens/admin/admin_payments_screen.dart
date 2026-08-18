@@ -180,7 +180,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user['name'] ?? 'Inconnu',
+                        _buildPaymentName(user, meta),
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                       ),
                       Text(
@@ -247,6 +247,15 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
         ),
       ),
     );
+  }
+
+  String _buildPaymentName(Map<String, dynamic> user, Map<String, dynamic> meta) {
+    final ln = meta['last_name'] ?? '';
+    final fn = meta['first_name'] ?? '';
+    if (ln.isNotEmpty || fn.isNotEmpty) {
+      return '$fn $ln'.trim();
+    }
+    return user['name'] ?? 'Inconnu';
   }
 
   Widget _buildDetailRow(String label, String value) {

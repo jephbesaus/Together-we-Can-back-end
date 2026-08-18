@@ -329,36 +329,41 @@ class PaymentService
             return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
         }
 
+        // Exclude manual deposits — they require admin approval
+        $meta = $transaction->metadata ?? [];
+        if (($meta['manual'] ?? null) === true) {
+            return ['success' => true, 'status' => $transaction->status, 'transaction' => $transaction];
+        }
+
         if ($transaction->status === 'pending' && in_array($transaction->type, ['deposit', 'course_payment'])) {
             $minutesElapsed = $transaction->created_at->diffInMinutes(now());
             if ($minutesElapsed >= 1) {
-                $transaction->refresh();
-                if ($transaction->status !== 'pending') {
-                    return ['success' => true, 'status' => $transaction->status, 'transaction' => $transaction];
+                // Atomic update to prevent double-crediting race condition
+                $updated = Transaction::where('id', $transaction->id)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'completed', 'completed_at' => now()]);
+
+                if ($updated) {
+                    $user = User::find($transaction->user_id);
+                    $user->increment('boost_balance', $transaction->amount);
+
+                    Log::info('Chariow auto-completed pending transaction', [
+                        'transaction_id' => $transactionId,
+                        'user_id' => $user->id,
+                        'amount' => $transaction->amount,
+                        'new_balance' => $user->fresh()->boost_balance,
+                    ]);
+
+                    $this->createNotification(
+                        $user->id,
+                        'payment',
+                        'Votre dépôt de ' . number_format($transaction->amount, 0, ',', '.') . ' CDF a été confirmé.',
+                        ['transaction_id' => $transaction->id]
+                    );
+
+                    $transaction->refresh();
+                    return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
                 }
-
-                $user = User::find($transaction->user_id);
-                $transaction->update([
-                    'status' => 'completed',
-                    'completed_at' => now(),
-                ]);
-                $user->increment('boost_balance', $transaction->amount);
-
-                Log::info('Chariow auto-completed pending transaction', [
-                    'transaction_id' => $transactionId,
-                    'user_id' => $user->id,
-                    'amount' => $transaction->amount,
-                    'new_balance' => $user->fresh()->boost_balance,
-                ]);
-
-                $this->createNotification(
-                    $user->id,
-                    'payment',
-                    'Votre dépôt de ' . number_format($transaction->amount, 0, ',', '.') . ' CDF a été confirmé.',
-                    ['transaction_id' => $transaction->id]
-                );
-
-                return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
             }
         }
 

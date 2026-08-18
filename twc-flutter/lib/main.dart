@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,6 +7,7 @@ import 'app/theme.dart';
 import 'app/routes.dart';
 import 'app/constants.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/fcm_background_handler.dart';
 import 'core/services/api_service.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/connectivity_service.dart';
@@ -16,6 +18,9 @@ import 'core/controllers/locale_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Register background FCM handler BEFORE runApp (required by Firebase)
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   Get.put(ApiService(), permanent: true);
   Get.put(AuthService(), permanent: true);

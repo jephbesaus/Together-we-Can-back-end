@@ -103,8 +103,8 @@ class _SplashScreenState extends State<SplashScreen>
                       child: ScaleTransition(
                         scale: _pulseAnimation,
                         child: Container(
-                          width: 220,
-                          height: 220,
+                          width: 280,
+                          height: 280,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
@@ -119,7 +119,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           child: ClipOval(
                             child: Padding(
-                              padding: const EdgeInsets.all(30),
+                              padding: const EdgeInsets.all(35),
                               child: Image.asset(
                                 'assets/images/logo.png',
                                 fit: BoxFit.contain,
