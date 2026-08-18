@@ -149,6 +149,16 @@ class SeedDemoCourses extends Command
         }
 
         $this->info("Done. {$created} courses created.");
+
+        $approved = DB::table('courses')
+            ->where('status', 'draft')
+            ->where('is_published', false)
+            ->update(['status' => 'approved', 'is_published' => true, 'updated_at' => now()]);
+
+        if ($approved > 0) {
+            $this->info("Approved {$approved} draft courses.");
+        }
+
         return Command::SUCCESS;
     }
 }
