@@ -100,10 +100,14 @@ Route::get('/thank-you', function () {
     $reference = request()->query('reference', '');
     $type = request()->query('type', 'deposit');
     $courseId = request()->query('courseId', '');
+    $transactionId = request()->query('transaction_id', '');
 
     $deepLink = 'twc://payment?reference=' . urlencode($reference) . '&type=' . urlencode($type);
     if ($courseId) {
         $deepLink .= '&courseId=' . urlencode($courseId);
+    }
+    if ($transactionId) {
+        $deepLink .= '&transaction_id=' . urlencode($transactionId);
     }
 
     $html = '<!DOCTYPE html>

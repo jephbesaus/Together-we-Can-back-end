@@ -151,6 +151,7 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
     Route::post('/transactions/withdraw', [TransactionController::class, 'withdraw']);
     Route::post('/transactions/transfer', [TransactionController::class, 'transfer']);
     Route::post('/transactions/manual-deposit', [TransactionController::class, 'manualDeposit']);
+    Route::post('/transactions/{id}/confirm', [TransactionController::class, 'confirmDeposit']);
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);

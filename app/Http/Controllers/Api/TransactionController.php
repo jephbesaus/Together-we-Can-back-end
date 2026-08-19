@@ -229,4 +229,42 @@ class TransactionController extends Controller
             'transaction' => $transaction,
         ]);
     }
+
+    public function confirmDeposit(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'last_name' => 'required|string|max:100',
+            'first_name' => 'required|string|max:100',
+            'chariow_reference' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        $transaction = Transaction::where('user_id', auth()->id())
+            ->where('id', $id)
+            ->where('type', 'deposit')
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$transaction) {
+            return $this->errorResponse('Transaction non trouvée ou déjà traitée.', 404);
+        }
+
+        $transaction->update([
+            'metadata' => array_merge($transaction->metadata ?? [], [
+                'manual' => true,
+                'last_name' => $request->last_name,
+                'first_name' => $request->first_name,
+                'chariow_reference' => $request->chariow_reference,
+                'confirmed_at' => now()->toISOString(),
+            ]),
+        ]);
+
+        return $this->successResponse([
+            'message' => 'Informations enregistrées. En attente de vérification par l\'administrateur.',
+            'transaction' => $transaction->fresh(),
+        ]);
+    }
 }

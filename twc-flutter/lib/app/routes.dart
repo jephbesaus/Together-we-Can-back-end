@@ -30,6 +30,7 @@ import '../screens/menu/settings_screen.dart';
 import '../screens/menu/about_screen.dart';
 import '../screens/courses/instructor_dashboard_screen.dart';
 import '../screens/courses/certificate_screen.dart';
+import '../screens/wallet/payment_confirmation_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class AppRoutes {
@@ -68,6 +69,7 @@ class AppRoutes {
   static const about = '/about';
   static const instructorDashboard = '/instructor/dashboard';
   static const certificate = '/certificate';
+  static const paymentConfirmation = '/payment-confirmation';
 
   static final routes = [
     GetPage(name: splash, page: () => const SplashScreen()),
@@ -127,6 +129,15 @@ class AppRoutes {
         courseTitle: args['courseTitle'] ?? '',
         userName: args['userName'] ?? '',
         completedAt: args['completedAt'] ?? '',
+      );
+    }),
+    GetPage(name: paymentConfirmation, page: () {
+      final args = Get.arguments as Map<String, dynamic>;
+      return PaymentConfirmationScreen(
+        transactionId: args['transaction_id'],
+        reference: args['reference'] ?? '',
+        amount: args['amount'] ?? 0,
+        type: args['type'] ?? 'deposit',
       );
     }),
   ];

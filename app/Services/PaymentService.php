@@ -55,7 +55,7 @@ class PaymentService
                             'country_code' => 'CD',
                         ],
                         'payment_currency' => 'CDF',
-                        'redirect_url' => url('/thank-you?reference=' . $reference . '&type=deposit'),
+                        'redirect_url' => url('/thank-you?reference=' . $reference . '&type=deposit&transaction_id=' . $transaction->id),
                         'custom_metadata' => [
                             'user_id' => (string) $userId,
                             'reference' => $reference,
@@ -325,47 +325,8 @@ class PaymentService
         $transaction = Transaction::find($transactionId);
         if (!$transaction) return ['success' => false, 'message' => 'Transaction non trouvée.'];
 
-        if ($transaction->status === 'completed') {
-            return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
-        }
-
-        // Exclude manual deposits — they require admin approval
-        $meta = $transaction->metadata ?? [];
-        if (($meta['manual'] ?? null) === true) {
-            return ['success' => true, 'status' => $transaction->status, 'transaction' => $transaction];
-        }
-
-        if ($transaction->status === 'pending' && in_array($transaction->type, ['deposit', 'course_payment'])) {
-            $minutesElapsed = $transaction->created_at->diffInMinutes(now());
-            if ($minutesElapsed >= 2) {
-                // Atomic update to prevent double-crediting race condition
-                $updated = Transaction::where('id', $transaction->id)
-                    ->where('status', 'pending')
-                    ->update(['status' => 'completed', 'completed_at' => now()]);
-
-                if ($updated) {
-                    $user = User::find($transaction->user_id);
-                    $user->increment('boost_balance', $transaction->amount);
-
-                    Log::info('Chariow auto-completed pending transaction', [
-                        'transaction_id' => $transactionId,
-                        'user_id' => $user->id,
-                        'amount' => $transaction->amount,
-                        'new_balance' => $user->fresh()->boost_balance,
-                    ]);
-
-                    $this->createNotification(
-                        $user->id,
-                        'payment',
-                        'Votre dépôt de ' . number_format($transaction->amount, 0, ',', '.') . ' CDF a été confirmé.',
-                        ['transaction_id' => $transaction->id]
-                    );
-
-                    $transaction->refresh();
-                    return ['success' => true, 'status' => 'completed', 'transaction' => $transaction];
-                }
-            }
-        }
+        // NO auto-complete here — all deposits now require admin approval
+        // after the user fills the confirmation form.
 
         return ['success' => true, 'status' => $transaction->status, 'transaction' => $transaction];
     }
