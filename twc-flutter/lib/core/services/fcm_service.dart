@@ -16,6 +16,7 @@ class FCMService {
     await _setupLocalNotifications();
     await _getToken();
     _setupListeners();
+    await _subscribeToTopic('all');
   }
 
   Future<void> _requestPermissions() async {
@@ -31,6 +32,22 @@ class FCMService {
     const ios = DarwinInitializationSettings();
     const settings = InitializationSettings(android: android, iOS: ios);
     await _localNotifications.initialize(settings: settings);
+
+    // Crée le canal de notification Android (obligatoire Android 8+)
+    final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'together_we_can_channel',
+          'Together We Can',
+          description: 'Notifications Together We Can',
+          importance: Importance.high,
+          enableVibration: true,
+          playSound: true,
+        ),
+      );
+    }
   }
 
   Future<void> _getToken() async {
@@ -84,6 +101,15 @@ class FCMService {
       });
     } catch (e) {
       print('Error sending token to server: $e');
+    }
+  }
+
+  Future<void> _subscribeToTopic(String topic) async {
+    try {
+      await _fcm.subscribeToTopic(topic);
+      print('Subscribed to topic: $topic');
+    } catch (e) {
+      print('Error subscribing to topic: $e');
     }
   }
 }
