@@ -67,7 +67,6 @@ REFERRAL_REWARD_AMOUNT="${REFERRAL_REWARD_AMOUNT}"
 JWT_SECRET="${JWT_SECRET}"
 
 FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID}"
-FIREBASE_CREDENTIALS="${FIREBASE_CREDENTIALS}"
 
 APP_RELEASE_VERSION="${APP_RELEASE_VERSION}"
 APP_RELEASE_APK="${APP_RELEASE_APK}"
@@ -77,6 +76,14 @@ APP_RELEASE_EXTERNAL_URL="${APP_RELEASE_EXTERNAL_URL}"
 EOF
 
 echo "[entrypoint] .env créé avec succès."
+
+# Écrit les credentials Firebase dans un fichier (le JSON ne rentre pas dans .env)
+mkdir -p storage/app/firebase
+if [ -n "${FIREBASE_CREDENTIALS:-}" ]; then
+  echo "${FIREBASE_CREDENTIALS}" > storage/app/firebase/service-account.json
+  chmod 644 storage/app/firebase/service-account.json
+  echo "[entrypoint] Firebase credentials écrit dans storage/app/firebase/service-account.json"
+fi
 
 # Génère une APP_KEY si absente
 if [ -z "${APP_KEY:-}" ] && ! grep -q '^APP_KEY=.\+' .env; then

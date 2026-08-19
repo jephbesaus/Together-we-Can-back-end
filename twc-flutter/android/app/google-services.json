@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "113129589827",
+    "project_id": "we-can-thogether",
+    "storage_bucket": "we-can-thogether.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:113129589827:android:06c8997da1948c2189d8f6",
+        "android_client_info": {
+          "package_name": "com.togetherwecan.together_we_can"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmBVLymYUY1eadtod62y67Xhmaim6EOMQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
