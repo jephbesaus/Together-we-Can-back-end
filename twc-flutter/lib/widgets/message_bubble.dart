@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../app/constants.dart';
+import '../core/services/media_service.dart';
 import '../core/models/message.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -70,7 +71,7 @@ class MessageBubble extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: CachedNetworkImage(
-                          imageUrl: message.mediaUrl!,
+                          imageUrl: MediaService.resolveUrl(message.mediaUrl) ?? message.mediaUrl!,
                           width: 200,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(

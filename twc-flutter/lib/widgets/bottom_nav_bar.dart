@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../app/constants.dart';
@@ -21,6 +22,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
   int _selectedIndex = 0;
   int _unreadMessages = 0;
   int _unreadNotifications = 0;
+  Timer? _badgeTimer;
 
   final List<Widget> _screens = [
     const DiscoverScreen(),
@@ -34,6 +36,13 @@ class _BottomNavBarState extends State<BottomNavBar> {
   void initState() {
     super.initState();
     _loadBadges();
+    _badgeTimer = Timer.periodic(const Duration(seconds: 5), (_) => _loadBadges());
+  }
+
+  @override
+  void dispose() {
+    _badgeTimer?.cancel();
+    super.dispose();
   }
 
   void _loadBadges() async {

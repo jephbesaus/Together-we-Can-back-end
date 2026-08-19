@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
@@ -8,6 +9,7 @@ class FCMService {
   static final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  static int _notificationId = 0;
 
   final ApiService _api = Get.find<ApiService>();
 
@@ -20,22 +22,27 @@ class FCMService {
   }
 
   Future<void> _requestPermissions() async {
-    await _fcm.requestPermission(
+    final settings = await _fcm.requestPermission(
       alert: true,
       badge: true,
       sound: true,
+      provisional: false,
     );
+    print('FCM permission: ${settings.authorizationStatus}');
   }
 
   Future<void> _setupLocalNotifications() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     const settings = InitializationSettings(android: android, iOS: ios);
-    await _localNotifications.initialize(settings: settings);
+    await _localNotifications.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: _onNotificationTap,
+    );
 
-    // Crée le canal de notification Android (obligatoire Android 8+)
-    final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(
         const AndroidNotificationChannel(
@@ -47,6 +54,23 @@ class FCMService {
           playSound: true,
         ),
       );
+    }
+  }
+
+  void _onNotificationTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload != null && payload.isNotEmpty) {
+      try {
+        final data = jsonDecode(payload);
+        final type = data['type'];
+        if (type == 'message') {
+          Get.toNamed('/messages');
+        } else if (type == 'notification') {
+          Get.toNamed('/notifications');
+        }
+      } catch (_) {
+        Get.toNamed('/notifications');
+      }
     }
   }
 
@@ -63,16 +87,35 @@ class FCMService {
   }
 
   void _setupListeners() {
-    FirebaseMessaging.onMessage.listen(_onMessage);
+    FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+    FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpenedApp);
     _fcm.onTokenRefresh.listen(_sendTokenToServer);
   }
 
-  void _onMessage(RemoteMessage message) {
-    print('Message received: ${message.notification?.title}');
+  void _onForegroundMessage(RemoteMessage message) {
+    print('FCM foreground: ${message.notification?.title}');
     _showLocalNotification(message);
   }
 
+  void _onMessageOpenedApp(RemoteMessage message) {
+    print('FCM opened from tap: ${message.data}');
+    final data = message.data;
+    final type = data['type'];
+    if (type == 'message') {
+      Get.toNamed('/messages');
+    } else if (type == 'notification') {
+      Get.toNamed('/notifications');
+    }
+  }
+
   Future<void> _showLocalNotification(RemoteMessage message) async {
+    _notificationId++;
+    final notificationId = _notificationId;
+
+    final type = message.data['type'] ?? 'notification';
+    final title = message.notification?.title ?? 'Together We Can';
+    final body = message.notification?.body ?? '';
+
     const android = AndroidNotificationDetails(
       'together_we_can_channel',
       'Together We Can',
@@ -80,21 +123,32 @@ class FCMService {
       importance: Importance.high,
       priority: Priority.high,
       playSound: true,
+      enableVibration: true,
+      icon: '@mipmap/ic_launcher',
     );
-    const ios = DarwinNotificationDetails();
+    const ios = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
     const details = NotificationDetails(android: android, iOS: ios);
 
+    final payload = jsonEncode({
+      'type': type,
+      'notification_id': message.data['notification_id'],
+    });
+
     await _localNotifications.show(
-      id: 0,
-      title: message.notification?.title ?? 'Together We Can',
-      body: message.notification?.body ?? '',
+      id: notificationId,
+      title: title,
+      body: body,
       notificationDetails: details,
+      payload: payload,
     );
   }
 
   Future<void> _sendTokenToServer(String token) async {
     try {
-      // Noms de champs alignés sur NotificationController::updateFcmToken (backend Laravel)
       await _api.post('/notifications/fcm-token', data: {
         'device_token': token,
         'device_platform': 'android',

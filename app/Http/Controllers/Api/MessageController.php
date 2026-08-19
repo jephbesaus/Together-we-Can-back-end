@@ -115,7 +115,7 @@ class MessageController extends Controller
         if ($request->hasFile('media')) {
             $file = $request->file('media');
             $path = $file->store('messages/' . date('Y/m/d'), 'public');
-            $mediaUrl = Storage::url($path);
+            $mediaUrl = \App\Support\MediaHelper::absoluteUrl($path);
             $mediaType = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
         }
 
