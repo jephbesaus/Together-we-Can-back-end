@@ -240,4 +240,25 @@ class MessageController extends Controller
 
         return $this->successResponse(['message' => 'User unblocked in this conversation.']);
     }
+
+    public function searchUsers(Request $request)
+    {
+        $q = $request->input('q', '');
+        $myId = auth()->id();
+
+        $query = User::where('id', '!=', $myId)
+            ->where('is_blocked', false)
+            ->select('id', 'name', 'profile_photo', 'is_premium', 'is_verified');
+
+        if (strlen($q) >= 2) {
+            $query->where(function ($qr) use ($q) {
+                $qr->where('name', 'ilike', "%{$q}%")
+                    ->orWhere('email', 'ilike', "%{$q}%");
+            });
+        }
+
+        $users = $query->limit(30)->get();
+
+        return $this->successResponse(['users' => $users]);
+    }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/media_service.dart';
 import '../../core/models/conversation.dart';
@@ -18,15 +19,9 @@ class _SearchMessagesScreenState extends State<SearchMessagesScreen> {
   final ApiService _api = Get.find<ApiService>();
   final TextEditingController _searchController = TextEditingController();
 
-  List<Conversation> _all = [];
-  List<Conversation> _results = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadConversations();
-  }
+  List<Map<String, dynamic>> _users = [];
+  bool _isLoading = false;
+  bool _hasSearched = false;
 
   @override
   void dispose() {
@@ -34,34 +29,40 @@ class _SearchMessagesScreenState extends State<SearchMessagesScreen> {
     super.dispose();
   }
 
-  Future<void> _loadConversations() async {
-    setState(() => _isLoading = true);
+  Future<void> _searchUsers(String q) async {
+    if (q.trim().length < 2) {
+      setState(() { _users = []; _hasSearched = false; });
+      return;
+    }
+
+    setState(() { _isLoading = true; _hasSearched = true; });
+
     try {
-      final response = await _api.get('/messages/conversations');
+      final response = await _api.get('/messages/search-users', params: {'q': q.trim()});
       if (response['success']) {
         setState(() {
-          _all = (response['data']['conversations'] as List)
-              .map((item) => Conversation.fromJson(item))
-              .toList();
+          _users = List<Map<String, dynamic>>.from(response['data']['users'] ?? []);
         });
       }
     } catch (e) {
-      print('Error loading conversations: $e');
+      print('Error searching users: $e');
     }
+
     setState(() => _isLoading = false);
   }
 
-  void _onSearchChanged(String query) {
-    final q = query.trim().toLowerCase();
-    setState(() {
-      if (q.isEmpty) {
-        _results = [];
-      } else {
-        _results = _all
-            .where((c) => c.user.name.toLowerCase().contains(q))
-            .toList();
-      }
+  void _openChat(Map<String, dynamic> user) {
+    final conversation = Conversation.fromJson({
+      'id': 'new',
+      'other_user': user,
+      'last_message': null,
+      'last_message_at': null,
+      'unread_count': 0,
+      'is_archived': false,
+      'is_blocked': false,
+      'created_at': DateTime.now().toIso8601String(),
     });
+    Get.to(() => ChatScreen(conversation: conversation));
   }
 
   @override
@@ -72,87 +73,100 @@ class _SearchMessagesScreenState extends State<SearchMessagesScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Rechercher des messages'),
+        title: const Text('Nouvelle conversation'),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
-      body: _isLoading
-          ? const AppLoadingView(message: 'Chargement des conversations...')
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: _onSearchChanged,
-                    decoration: InputDecoration(
-                      hintText: 'Nom du membre...',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              onChanged: (v) {
+                if (v.trim().length >= 2) _searchUsers(v);
+                else setState(() { _users = []; _hasSearched = false; });
+              },
+              decoration: InputDecoration(
+                hintText: 'Rechercher un membre...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() { _users = []; _hasSearched = false; });
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-                Expanded(
-                  child: _searchController.text.trim().isEmpty
-                      ? Center(
-                          child: Text(
-                            'Tapez un nom pour rechercher une conversation.',
-                            style: TextStyle(color: Colors.grey[500]),
-                          ),
-                        )
-                      : _results.isEmpty
-                          ? Center(
-                              child: Text(
-                                'Aucune conversation trouvée.',
-                                style: TextStyle(color: Colors.grey[500]),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: _results.length,
-                              itemBuilder: (context, index) {
-                                return _buildTile(_results[index]);
-                              },
-                            ),
-                ),
-              ],
+              ),
             ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : !_hasSearched
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_search, size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Tapez un nom pour trouver un membre.',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _users.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Aucun membre trouvé.',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _users.length,
+                            itemBuilder: (context, index) {
+                              final user = _users[index];
+                              return _buildUserTile(user);
+                            },
+                          ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTile(Conversation conversation) {
+  Widget _buildUserTile(Map<String, dynamic> user) {
+    final profilePhoto = user['profile_photo'];
+    final name = user['name'] ?? '';
+    final isPremium = user['is_premium'] ?? false;
+
     return ListTile(
-      onTap: () => Get.to(() => ChatScreen(conversation: conversation)),
+      onTap: () => _openChat(user),
       leading: CircleAvatar(
         radius: 24,
-        backgroundImage: conversation.user.profilePhoto != null
-            ? CachedNetworkImageProvider(
-                MediaService.resolveUrl(conversation.user.profilePhoto!)!)
-            : null,
         backgroundColor: Colors.grey[300],
-        child: conversation.user.profilePhoto == null
+        backgroundImage: profilePhoto != null
+            ? CachedNetworkImageProvider(MediaService.resolveUrl(profilePhoto)!)
+            : null,
+        child: profilePhoto == null
             ? Text(
-                conversation.user.name.isNotEmpty
-                    ? conversation.user.name[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               )
             : null,
       ),
-      title: Text(
-        conversation.user.name,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        conversation.lastMessage?.content ?? '',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Colors.grey[500], fontSize: 12),
-      ),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+      trailing: const Icon(Icons.chat_bubble_outline, size: 20, color: AppConstants.primaryColor),
     );
   }
 }

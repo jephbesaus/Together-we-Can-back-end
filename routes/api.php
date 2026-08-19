@@ -86,6 +86,7 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
 
     Route::get('/messages/conversations', [MessageController::class, 'conversations']);
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount']);
+    Route::get('/messages/search-users', [MessageController::class, 'searchUsers']);
     Route::get('/messages/{userId}', [MessageController::class, 'conversation']);
     Route::post('/messages', [MessageController::class, 'store']);
     Route::put('/messages/{id}/read', [MessageController::class, 'markAsRead']);
