@@ -99,7 +99,7 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
       final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
       if (picked == null) return;
       Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
-      final response = await _api.uploadFile('/admin/courses/$courseId', File(picked.path), 'cover_image', method: 'POST');
+      final response = await _api.uploadFile('/admin/courses/$courseId', File(picked.path), 'cover_image', method: 'PUT');
       Get.back();
       if (response != null && response['success'] == true) {
         Get.snackbar('Succès', 'Image mise à jour.');
@@ -199,7 +199,7 @@ class _AdminCoursesScreenState extends State<AdminCoursesScreen> {
                   if (response['success'] && response['data']?['course'] != null) {
                     final courseId = response['data']['course']['id'];
                     if (pickedImage != null) {
-                      await _api.uploadFile('/admin/courses/$courseId', pickedImage!, 'cover_image', method: 'POST');
+                      await _api.uploadFile('/admin/courses/$courseId', pickedImage!, 'cover_image', method: 'PUT');
                     }
                     Get.snackbar('Succès', 'Formation créée.');
                     _load();

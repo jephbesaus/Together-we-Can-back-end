@@ -631,7 +631,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
       Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
       final file = File(picked.path);
-      final response = await _api.uploadFile('/admin/courses/$courseId', file, 'cover_image', method: 'POST');
+      final response = await _api.uploadFile('/admin/courses/$courseId', file, 'cover_image', method: 'PUT');
 
       Get.back();
 
@@ -804,7 +804,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
 
                     // Upload image if picked
                     if (pickedImage != null) {
-                      await _api.uploadFile('/admin/courses/$courseId', pickedImage!, 'cover_image', method: 'POST');
+                      await _api.uploadFile('/admin/courses/$courseId', pickedImage!, 'cover_image', method: 'PUT');
                     }
 
                     Get.snackbar('Succès', 'Formation créée.');
