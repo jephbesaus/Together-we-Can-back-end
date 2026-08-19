@@ -123,7 +123,14 @@ class ApiService {
 
   Future<Map<String, dynamic>> multipart(String path, FormData data) async {
     try {
-      final response = await _dio.post(path, data: data);
+      final response = await _dio.post(
+        path,
+        data: data,
+        options: Options(
+          sendTimeout: const Duration(seconds: 120),
+          receiveTimeout: const Duration(seconds: 120),
+        ),
+      );
       return response.data;
     } on DioException catch (e) {
       return _handleError(e);
@@ -140,7 +147,11 @@ class ApiService {
       final response = await _dio.request(
         path,
         data: formData,
-        options: Options(method: method),
+        options: Options(
+          method: method,
+          sendTimeout: const Duration(seconds: 120),
+          receiveTimeout: const Duration(seconds: 120),
+        ),
       );
       return response.data;
     } on DioException catch (e) {
@@ -152,14 +163,50 @@ class ApiService {
   /// on le retourne tel quel pour que l'UI affiche le vrai message.
   /// Sinon (pas de connexion, timeout...), on retourne une erreur générique.
   Map<String, dynamic> _handleError(DioException e) {
+    // Si le backend a répondu avec un JSON d'erreur, on le retourne tel quel
     final data = e.response?.data;
     if (data is Map<String, dynamic> && data.containsKey('success')) {
       return data;
     }
-    return {
-      'success': false,
-      'error': 'Erreur réseau. Vérifiez votre connexion et réessayez.',
-    };
+
+    // Messages d'erreur spécifiques selon le type
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return {
+          'success': false,
+          'error': 'Le serveur met trop de temps à répondre. Réessayez.',
+        };
+      case DioExceptionType.connectionError:
+        return {
+          'success': false,
+          'error': 'Pas de connexion internet. Vérifiez votre réseau.',
+        };
+      case DioExceptionType.badResponse:
+        final statusCode = e.response?.statusCode;
+        if (statusCode == 413) {
+          return {
+            'success': false,
+            'error': 'Le fichier est trop volumineux (max 5 Mo).',
+          };
+        }
+        if (statusCode == 422) {
+          // Tente d'extraire le message de validation
+          if (data is Map<String, dynamic>) {
+            return data;
+          }
+        }
+        return {
+          'success': false,
+          'error': 'Erreur serveur ($statusCode). Réessayez.',
+        };
+      default:
+        return {
+          'success': false,
+          'error': 'Erreur réseau. Vérifiez votre connexion et réessayez.',
+        };
+    }
   }
 
   /// Laravel peut renvoyer 'error' comme une simple String OU comme un objet
