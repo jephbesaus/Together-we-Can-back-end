@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/media_service.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
@@ -79,7 +80,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                 ClipRRect(
                                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                                   child: CachedNetworkImage(
-                                    imageUrl: a['image_url'],
+                                    imageUrl: MediaService.resolveUrl(a['image_url']) ?? a['image_url'],
                                     height: 160,
                                     width: double.infinity,
                                     fit: BoxFit.cover,

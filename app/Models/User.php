@@ -58,7 +58,7 @@ class User extends Authenticatable
 
     public function getProfilePhotoUrlAttribute()
     {
-        return $this->profile_photo ? asset('storage/' . $this->profile_photo) : 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&color=FFFFFF&background=00A86B';
+        return $this->profile_photo ? \App\Support\MediaHelper::absoluteUrl($this->profile_photo) : 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&color=FFFFFF&background=00A86B';
     }
 
     public function isAdmin() { return $this->role === 'admin'; }

@@ -5,6 +5,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:intl/intl.dart';
 import '../app/constants.dart';
 import '../core/models/post.dart';
+import '../core/services/media_service.dart';
 import '../screens/profile/user_profile_screen.dart';
 import 'video_player_widget.dart';
 import 'verified_badge.dart';
@@ -52,7 +53,7 @@ class PostWidget extends StatelessWidget {
                   child: CircleAvatar(
                   radius: 22,
                   backgroundImage: post.user.profilePhoto != null
-                      ? CachedNetworkImageProvider(post.user.profilePhoto!)
+                      ? CachedNetworkImageProvider(MediaService.resolveUrl(post.user.profilePhoto) ?? post.user.profilePhoto!)
                       : null,
                   backgroundColor: Colors.grey[300],
                   child: post.user.profilePhoto == null
@@ -216,12 +217,12 @@ class PostWidget extends StatelessWidget {
 
     if (media.length == 1) {
       if (post.mediaType == 'video') {
-        return VideoPostPlayer(url: media.first);
+        return VideoPostPlayer(url: MediaService.resolveUrl(media.first) ?? media.first);
       }
       return ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 480, minHeight: 180),
         child: CachedNetworkImage(
-          imageUrl: media.first,
+          imageUrl: MediaService.resolveUrl(media.first) ?? media.first,
           fit: BoxFit.contain,
           width: double.infinity,
           placeholder: (context, url) => Container(
@@ -255,7 +256,7 @@ class PostWidget extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               CachedNetworkImage(
-                imageUrl: media[index],
+                imageUrl: MediaService.resolveUrl(media[index]) ?? media[index],
                 fit: BoxFit.cover,
               ),
               Container(
@@ -275,7 +276,7 @@ class PostWidget extends StatelessWidget {
           );
         }
         return CachedNetworkImage(
-          imageUrl: media[index],
+          imageUrl: MediaService.resolveUrl(media[index]) ?? media[index],
           fit: BoxFit.cover,
           placeholder: (context, url) => Container(color: Colors.grey[300]),
           errorWidget: (context, url, error) => Container(
