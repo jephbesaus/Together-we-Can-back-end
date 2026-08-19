@@ -5,6 +5,10 @@ cd /var/www/html
 
 chmod -R 777 storage bootstrap/cache database
 
+# Crée les sous-dossiers de stockage pour les uploads
+mkdir -p storage/app/public/profiles storage/app/public/posts
+chmod -R 777 storage/app/public
+
 # Installation des dépendances si vendor est absent
 if [ ! -f vendor/autoload.php ]; then
   echo "[entrypoint] Installation des dépendances Composer..."

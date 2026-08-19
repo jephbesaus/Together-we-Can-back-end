@@ -20,6 +20,8 @@ RUN mkdir -p storage/framework/sessions \
     storage/framework/views \
     storage/framework/cache \
     storage/logs \
+    storage/app/public/profiles \
+    storage/app/public/posts \
     bootstrap/cache \
     database
 

@@ -35,7 +35,7 @@ class UserController extends Controller
             'bio' => 'nullable|string|max:500',
             'phone' => 'sometimes|string|unique:users,phone,' . $user->id,
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'profile_photo' => 'nullable|file|mimes:jpeg,png,gif,webp|max:5120',
+            'profile_photo' => 'nullable|file|mimes:jpeg,png,gif|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -45,8 +45,13 @@ class UserController extends Controller
         $data = $request->only(['name', 'bio', 'phone', 'email']);
 
         if ($request->hasFile('profile_photo')) {
-            $path = $request->file('profile_photo')->store('profiles', 'public');
-            $data['profile_photo'] = $path;
+            try {
+                $path = $request->file('profile_photo')->store('profiles', 'public');
+                $data['profile_photo'] = $path;
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Profile photo upload failed: ' . $e->getMessage());
+                return $this->errorResponse('Failed to upload photo. Please try again.', 500);
+            }
         }
 
         $user->update($data);
@@ -60,21 +65,26 @@ class UserController extends Controller
     public function updateProfilePhoto(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'photo' => 'required|file|mimes:jpeg,png,gif,webp|max:5120',
+            'photo' => 'required|file|mimes:jpeg,png,gif|max:5120',
         ]);
 
         if ($validator->fails()) {
             return $this->errorResponse($validator->errors(), 422);
         }
 
-        $user = auth()->user();
-        $path = $request->file('photo')->store('profiles', 'public');
-        $user->update(['profile_photo' => $path]);
+        try {
+            $user = auth()->user();
+            $path = $request->file('photo')->store('profiles', 'public');
+            $user->update(['profile_photo' => $path]);
 
-        return $this->successResponse([
-            'message' => 'Profile photo updated.',
-            'profile_photo' => \App\Support\MediaHelper::absoluteUrl($path),
-        ]);
+            return $this->successResponse([
+                'message' => 'Profile photo updated.',
+                'profile_photo' => \App\Support\MediaHelper::absoluteUrl($path),
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Profile photo upload failed: ' . $e->getMessage());
+            return $this->errorResponse('Failed to upload photo. Please try again.', 500);
+        }
     }
 
     public function stats()
