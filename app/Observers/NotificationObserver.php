@@ -17,14 +17,36 @@ class NotificationObserver
 
     public function created(Notification $notification)
     {
-        if (!$notification->has_sound) return;
+        Log::info('NotificationObserver: notification created', [
+            'id' => $notification->id,
+            'type' => $notification->type,
+            'user_id' => $notification->user_id,
+            'has_sound' => $notification->has_sound,
+        ]);
+
+        if (!$notification->has_sound) {
+            Log::info('NotificationObserver: skipped (has_sound=false)');
+            return;
+        }
 
         $user = $notification->user;
-        if (!$user || !$user->device_token) return;
+        if (!$user) {
+            Log::warning('NotificationObserver: user not found for notification ' . $notification->id);
+            return;
+        }
+        if (!$user->device_token) {
+            Log::warning('NotificationObserver: no device_token for user ' . $user->id);
+            return;
+        }
 
         $title = $notification->title ?? $this->getTitleForType($notification->type);
 
-        $this->notificationService->sendPush(
+        Log::info('NotificationObserver: sending push', [
+            'token' => substr($user->device_token, 0, 20) . '...',
+            'title' => $title,
+        ]);
+
+        $result = $this->notificationService->sendPush(
             $user->device_token,
             $title,
             $notification->message,
@@ -34,6 +56,8 @@ class NotificationObserver
                 'data' => is_string($notification->data) ? $notification->data : json_encode($notification->data ?? []),
             ]
         );
+
+        Log::info('NotificationObserver: sendPush result=' . ($result ? 'true' : 'false'));
     }
 
     private function getTitleForType(string $type): string

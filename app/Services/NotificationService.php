@@ -14,9 +14,18 @@ class NotificationService
     public function __construct()
     {
         try {
-            $factory = (new Factory)->withServiceAccount(config('firebase.credentials.file'))->withProjectId(config('firebase.project_id'));
+            $credPath = config('firebase.credentials.file');
+            Log::info('FCM: loading credentials from ' . $credPath);
+            if (!file_exists($credPath)) {
+                Log::error('FCM: credentials file not found: ' . $credPath);
+                return;
+            }
+            $factory = (new Factory)->withServiceAccount($credPath)->withProjectId(config('firebase.project_id'));
             $this->messaging = $factory->createMessaging();
-        } catch (\Exception $e) { Log::error('FCM Initialization failed: ' . $e->getMessage()); }
+            Log::info('FCM: messaging initialized successfully');
+        } catch (\Exception $e) {
+            Log::error('FCM Initialization failed: ' . $e->getMessage());
+        }
     }
 
     public function sendPush($deviceToken, $title, $body, $data = [])

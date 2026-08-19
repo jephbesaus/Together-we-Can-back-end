@@ -35,7 +35,7 @@ class UserController extends Controller
             'bio' => 'nullable|string|max:500',
             'phone' => 'sometimes|string|unique:users,phone,' . $user->id,
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'profile_photo' => 'nullable|file|mimes:jpeg,png,gif|max:5120',
+            'profile_photo' => 'nullable|file|mimes:jpeg,png,gif,webp|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -60,7 +60,7 @@ class UserController extends Controller
     public function updateProfilePhoto(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'photo' => 'required|file|mimes:jpeg,png,gif|max:5120',
+            'photo' => 'required|file|mimes:jpeg,png,gif,webp|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -73,7 +73,7 @@ class UserController extends Controller
 
         return $this->successResponse([
             'message' => 'Profile photo updated.',
-            'profile_photo' => asset('storage/' . $path),
+            'profile_photo' => \App\Support\MediaHelper::absoluteUrl($path),
         ]);
     }
 

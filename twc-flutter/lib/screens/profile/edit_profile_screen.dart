@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/media_service.dart';
 import '../../core/models/user.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -48,6 +49,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() {
           _currentPhotoUrl = user['profile_photo_url'] ?? user['profile_photo'];
         });
+        if (_currentPhotoUrl != null) {
+          _currentPhotoUrl = MediaService.resolveUrl(_currentPhotoUrl);
+        }
       }
     } catch (e) {
       print('Error loading profile: $e');
@@ -114,7 +118,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final response = await _api.multipart('/user/profile-photo', formData);
 
       if (response['success']) {
-        setState(() => _currentPhotoUrl = response['data']['profile_photo']);
+        setState(() => _currentPhotoUrl = MediaService.resolveUrl(response['data']['profile_photo']));
         Get.snackbar('Succès', 'Photo de profil mise à jour.');
       } else {
         Get.snackbar(
