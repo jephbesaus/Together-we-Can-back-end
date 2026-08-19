@@ -7,6 +7,11 @@ RUN apt-get update && apt-get install -y \
 RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath gd
 RUN a2enmod rewrite
 
+# Increase PHP upload limits for profile photos
+RUN echo "upload_max_filesize = 10M" > /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "post_max_size = 12M" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "max_execution_time = 120" >> /usr/local/etc/php/conf.d/uploads.ini
+
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 RUN sed -i 's|/var/www/|/var/www/html/public/|g' /etc/apache2/apache2.conf
 

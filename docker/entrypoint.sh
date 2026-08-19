@@ -100,6 +100,10 @@ php artisan view:clear
 php artisan cache:clear
 php artisan migrate --force
 php artisan courses:seed-demo || true
-php artisan storage:link || true
+
+# Supprime l'ancien symlink cassé et le recrée proprement
+rm -f public/storage
+php artisan storage:link
+chmod -R 777 storage/app/public
 
 apache2-foreground
