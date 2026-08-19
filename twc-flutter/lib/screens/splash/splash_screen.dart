@@ -16,13 +16,14 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _pulseAnimation;
+  late Animation<double> _textFade;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 2500),
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -32,17 +33,24 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.5, curve: Curves.elasticOut),
       ),
     );
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.06).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
+      ),
+    );
+
+    _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.3, 0.7, curve: Curves.easeIn),
       ),
     );
 
@@ -57,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateAfterDelay() async {
-    await Future.delayed(const Duration(milliseconds: 2800));
+    await Future.delayed(const Duration(milliseconds: 3000));
     if (!mounted) return;
 
     final auth = Get.find<AuthService>();
@@ -80,12 +88,13 @@ class _SplashScreenState extends State<SplashScreen>
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
               Color(0xFF00A86B),
               Color(0xFF008C5A),
-              Color(0xFF004D33),
+              Color(0xFF005C3A),
+              Color(0xFF003D27),
             ],
           ),
         ),
@@ -98,28 +107,29 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Logo
                     Transform.scale(
                       scale: _scaleAnimation.value,
                       child: ScaleTransition(
                         scale: _pulseAnimation,
                         child: Container(
-                          width: 280,
-                          height: 280,
+                          width: 300,
+                          height: 300,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 50,
-                                spreadRadius: 5,
-                                offset: const Offset(0, 20),
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 60,
+                                spreadRadius: 10,
+                                offset: const Offset(0, 25),
                               ),
                             ],
                           ),
                           child: ClipOval(
                             child: Padding(
-                              padding: const EdgeInsets.all(35),
+                              padding: const EdgeInsets.all(25),
                               child: Image.asset(
                                 'assets/images/logo.png',
                                 fit: BoxFit.contain,
@@ -129,7 +139,47 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                     ),
+
+                    const SizedBox(height: 40),
+
+                    // App name
+                    FadeTransition(
+                      opacity: _textFade,
+                      child: Column(
+                        children: [
+                          Text(
+                            'Together We Can',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Ensemble, nous pouvons',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 50),
+
+                    // Loading
                     SizedBox(
                       width: 36,
                       height: 36,

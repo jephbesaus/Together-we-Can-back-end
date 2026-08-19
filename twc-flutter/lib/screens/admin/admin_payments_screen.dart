@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/media_service.dart';
 
 class AdminPaymentsScreen extends StatefulWidget {
   const AdminPaymentsScreen({super.key});
@@ -404,7 +405,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: CachedNetworkImage(
-                imageUrl: coverImage,
+                imageUrl: MediaService.resolveUrl(coverImage) ?? coverImage,
                 width: double.infinity,
                 height: 140,
                 fit: BoxFit.cover,

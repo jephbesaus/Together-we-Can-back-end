@@ -337,7 +337,7 @@ class PaymentService
 
         if ($transaction->status === 'pending' && in_array($transaction->type, ['deposit', 'course_payment'])) {
             $minutesElapsed = $transaction->created_at->diffInMinutes(now());
-            if ($minutesElapsed >= 1) {
+            if ($minutesElapsed >= 2) {
                 // Atomic update to prevent double-crediting race condition
                 $updated = Transaction::where('id', $transaction->id)
                     ->where('status', 'pending')

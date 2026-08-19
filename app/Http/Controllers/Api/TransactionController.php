@@ -27,28 +27,8 @@ class TransactionController extends Controller
     {
         $user = auth()->user();
 
-        // Auto-complete pending deposits older than 1 minute (exclude manual)
-        // Use atomic update to prevent double-crediting race condition
-        $pending = Transaction::where('user_id', $user->id)
-            ->where('type', 'deposit')
-            ->where('status', 'pending')
-            ->where('created_at', '<=', now()->subMinute())
-            ->whereRaw("metadata->>'manual' IS DISTINCT FROM 'true'")
-            ->get();
-
-        foreach ($pending as $tx) {
-            $updated = Transaction::where('id', $tx->id)
-                ->where('status', 'pending')
-                ->update(['status' => 'completed', 'completed_at' => now()]);
-
-            if ($updated) {
-                $user->increment('boost_balance', $tx->amount);
-                Log::info('Balance check: auto-completed pending deposit', [
-                    'transaction_id' => $tx->id,
-                    'amount' => $tx->amount,
-                ]);
-            }
-        }
+        // NEVER auto-complete deposits here — only checkChariowStatus() or admin can complete.
+        // Auto-completing here was causing false balances.
 
         $user->refresh();
 

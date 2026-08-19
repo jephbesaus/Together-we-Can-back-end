@@ -58,7 +58,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final confirm = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Supprimer cet utilisateur ?'),
-        content: Text('${user['name']} sera définitivement supprimé. Cette action est irréversible.'),
+        content: Text('${user['name']} sera définitivement supprimé.'),
         actions: [
           TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
           TextButton(
@@ -91,6 +91,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       appBar: AppBar(
         title: const Text('Gestion des utilisateurs'),
         backgroundColor: theme.scaffoldBackgroundColor,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _loadUsers(q: _searchController.text),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -101,57 +107,204 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               decoration: InputDecoration(
                 hintText: 'Rechercher (nom, email, téléphone)...',
                 prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: theme.cardColor,
               ),
               onSubmitted: (q) => _loadUsers(q: q),
             ),
           ),
+          // Stats bar
+          if (_users.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  _buildStat('${_users.length}', 'Total', Colors.blue),
+                  const SizedBox(width: 12),
+                  _buildStat('${_users.where((u) => u['is_blocked'] == true).length}', 'Bloqués', Colors.red),
+                  const SizedBox(width: 12),
+                  _buildStat('${_users.where((u) => u['role'] == 'admin').length}', 'Admins', Colors.amber),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _users.isEmpty
                     ? const Center(child: Text('Aucun utilisateur trouvé'))
-                    : ListView.builder(
-                        itemCount: _users.length,
-                        itemBuilder: (context, index) {
-                          final user = _users[index];
-                          final isBlocked = user['is_blocked'] == true;
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: user['profile_photo_url'] != null
-                                  ? CachedNetworkImageProvider(user['profile_photo_url'])
-                                  : null,
-                              backgroundColor: Colors.grey[300],
-                              child: user['profile_photo_url'] == null
-                                  ? Text((user['name'] ?? '?')[0].toUpperCase())
-                                  : null,
-                            ),
-                            title: Text(user['name'] ?? ''),
-                            subtitle: Text(
-                              '${user['email'] ?? ''}${isBlocked ? ' • Bloqué' : ''}',
-                              style: TextStyle(color: isBlocked ? Colors.red : null),
-                            ),
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (value) {
-                                if (value == 'toggle') _toggleBlock(user);
-                                if (value == 'delete') _deleteUser(user);
-                              },
-                              itemBuilder: (context) => [
-                                PopupMenuItem(
-                                  value: 'toggle',
-                                  child: Text(isBlocked ? 'Débloquer' : 'Bloquer'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Supprimer', style: TextStyle(color: Colors.red)),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                    : RefreshIndicator(
+                        onRefresh: () => _loadUsers(q: _searchController.text),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: _users.length,
+                          itemBuilder: (context, index) => _buildUserCard(_users[index]),
+                        ),
                       ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStat(String value, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
+            Text(label, style: TextStyle(fontSize: 11, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserCard(Map<String, dynamic> user) {
+    final isBlocked = user['is_blocked'] == true;
+    final isAdmin = user['role'] == 'admin';
+    final isPremium = user['is_premium'] == true;
+    final balance = double.tryParse('${user['boost_balance'] ?? 0}') ?? 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // Avatar
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundImage: user['profile_photo_url'] != null
+                      ? CachedNetworkImageProvider(user['profile_photo_url'])
+                      : null,
+                  backgroundColor: Colors.grey[300],
+                  child: user['profile_photo_url'] == null
+                      ? Text(
+                          (user['name'] ?? '?')[0].toUpperCase(),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                        )
+                      : null,
+                ),
+                if (isBlocked)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      child: const Icon(Icons.block, size: 12, color: Colors.white),
+                    ),
+                  ),
+                if (isAdmin)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(color: Colors.amber, shape: BoxShape.circle),
+                      child: const Icon(Icons.star, size: 12, color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 12),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          user['name'] ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isPremium)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('Premium', style: TextStyle(fontSize: 10, color: Colors.amber, fontWeight: FontWeight.w600)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    user['email'] ?? '',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.account_balance_wallet, size: 14, color: Colors.grey[400]),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${balance.toStringAsFixed(0)} CDF',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                      const SizedBox(width: 12),
+                      if (user['phone'] != null) ...[
+                        Icon(Icons.phone, size: 14, color: Colors.grey[400]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${user['phone']}',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Actions
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'toggle') _toggleBlock(user);
+                if (value == 'delete') _deleteUser(user);
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'toggle',
+                  child: Row(
+                    children: [
+                      Icon(isBlocked ? Icons.lock_open : Icons.lock, size: 18, color: isBlocked ? Colors.green : Colors.orange),
+                      const SizedBox(width: 8),
+                      Text(isBlocked ? 'Débloquer' : 'Bloquer'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, size: 18, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Supprimer', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
