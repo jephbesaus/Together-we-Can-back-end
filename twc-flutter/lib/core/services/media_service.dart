@@ -14,7 +14,13 @@ class MediaService {
   static String? resolveUrl(String? url) {
     if (url == null || url.isEmpty) return null;
 
+    // Already absolute and NOT localhost → return as-is
     if (url.startsWith('http://') || url.startsWith('https://')) {
+      // Fix localhost URLs from wrong APP_URL
+      if (url.contains('localhost') || url.contains('127.0.0.1')) {
+        final uri = Uri.parse(url);
+        return '$origin${uri.path}${uri.hasQuery ? '?${uri.query}' : ''}';
+      }
       return url;
     }
 
