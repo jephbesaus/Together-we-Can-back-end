@@ -631,13 +631,18 @@ class AdminController extends Controller
     public function pendingPayments(Request $request)
     {
         $query = Transaction::where('type', 'deposit')
-            ->whereRaw("metadata->>'manual' = 'true'")
             ->with('user');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
-        } else {
-            $query->where('status', 'pending');
+        }
+
+        if ($request->filled('type_filter')) {
+            if ($request->type_filter === 'manual') {
+                $query->whereRaw("metadata->>'manual' = 'true'");
+            } elseif ($request->type_filter === 'chariow') {
+                $query->whereRaw("metadata->>'manual' IS DISTINCT FROM 'true'");
+            }
         }
 
         $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
@@ -656,11 +661,6 @@ class AdminController extends Controller
 
         if (!$transaction || $transaction->type !== 'deposit') {
             return $this->errorResponse('Transaction non trouvée.', 404);
-        }
-
-        $meta = $transaction->metadata ?? [];
-        if (($meta['manual'] ?? null) !== true) {
-            return $this->errorResponse('Ce n\'est pas un paiement manuel.', 400);
         }
 
         if ($transaction->status !== 'pending') {
@@ -698,11 +698,6 @@ class AdminController extends Controller
 
         if (!$transaction || $transaction->type !== 'deposit') {
             return $this->errorResponse('Transaction non trouvée.', 404);
-        }
-
-        $meta = $transaction->metadata ?? [];
-        if (($meta['manual'] ?? null) !== true) {
-            return $this->errorResponse('Ce n\'est pas un paiement manuel.', 400);
         }
 
         if ($transaction->status !== 'pending') {

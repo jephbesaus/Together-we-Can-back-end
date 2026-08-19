@@ -24,6 +24,8 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
   List<Map<String, dynamic>> _courses = [];
   bool _isLoadingPayments = true;
   bool _isLoadingCourses = true;
+  String _paymentStatus = 'pending';
+  String _paymentType = 'all';
 
   @override
   void initState() {
@@ -42,7 +44,10 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
   Future<void> _loadPayments() async {
     setState(() => _isLoadingPayments = true);
     try {
-      final response = await _api.get('/admin/payments');
+      final params = <String, dynamic>{};
+      if (_paymentStatus != 'all') params['status'] = _paymentStatus;
+      if (_paymentType != 'all') params['type_filter'] = _paymentType;
+      final response = await _api.get('/admin/payments', params: params);
       if (response['success']) {
         setState(() {
           _payments = List<Map<String, dynamic>>.from(
@@ -119,28 +124,98 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_payments.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Aucun paiement en attente',
-              style: TextStyle(color: Colors.grey[500], fontSize: 16),
-            ),
-          ],
+    return Column(
+      children: [
+        // Filters
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            children: [
+              // Status filter
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _statusChip('En attente', 'pending'),
+                    _statusChip('Approuvés', 'completed'),
+                    _statusChip('Rejetés', 'failed'),
+                    _statusChip('Tous', 'all'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Type filter
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _typeChip('Tous', 'all'),
+                    _typeChip('Manuel', 'manual'),
+                    _typeChip('Chariow', 'chariow'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      );
-    }
 
-    return RefreshIndicator(
-      onRefresh: _loadPayments,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _payments.length,
-        itemBuilder: (context, index) => _buildPaymentCard(_payments[index]),
+        // Payment list
+        Expanded(
+          child: _payments.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Aucun paiement trouvé',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 16),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadPayments,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: _payments.length,
+                    itemBuilder: (context, index) => _buildPaymentCard(_payments[index]),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusChip(String label, String value) {
+    final isSelected = _paymentStatus == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : null)),
+        selected: isSelected,
+        selectedColor: AppConstants.primaryColor,
+        onSelected: (_) {
+          setState(() => _paymentStatus = value);
+          _loadPayments();
+        },
+      ),
+    );
+  }
+
+  Widget _typeChip(String label, String value) {
+    final isSelected = _paymentType == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : null)),
+        selected: isSelected,
+        selectedColor: Colors.blue,
+        onSelected: (_) {
+          setState(() => _paymentType = value);
+          _loadPayments();
+        },
       ),
     );
   }
