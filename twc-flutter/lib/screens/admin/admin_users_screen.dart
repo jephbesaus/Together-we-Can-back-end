@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/utils/formatters.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -79,6 +80,76 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       } catch (e) {
         Get.snackbar('Erreur', 'Erreur réseau.');
       }
+    }
+  }
+
+  Future<void> _updateBalance(Map<String, dynamic> user) async {
+    final balanceController = TextEditingController(
+      text: double.tryParse('${user['boost_balance'] ?? 0}')?.toStringAsFixed(0) ?? '0',
+    );
+
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('Solde de ${user['name']}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Solde actuel : ${Formatters.cdf(user['boost_balance'])}',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: balanceController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Nouveau solde (CDF)',
+                hintText: 'Ex: 3000',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Le solde sera remplacé par ce montant exact.',
+              style: TextStyle(fontSize: 12, color: Colors.orange),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppConstants.primaryColor),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final amount = double.tryParse(balanceController.text.trim());
+    if (amount == null || amount < 0) {
+      Get.snackbar('Erreur', 'Montant invalide.');
+      return;
+    }
+
+    try {
+      final response = await _api.post('/admin/users/${user['id']}/balance', data: {
+        'amount': amount,
+      });
+      if (response['success']) {
+        Get.snackbar('Succès', response['data']?['message'] ?? 'Solde mis à jour.');
+        _loadUsers(q: _searchController.text);
+      } else {
+        Get.snackbar(
+          'Erreur',
+          ApiService.extractErrorMessage(response['error'], fallback: 'Échec de la mise à jour.'),
+        );
+      }
+    } catch (e) {
+      Get.snackbar('Erreur', 'Erreur réseau.');
     }
   }
 
@@ -256,7 +327,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       Icon(Icons.account_balance_wallet, size: 14, color: Colors.grey[400]),
                       const SizedBox(width: 4),
                       Text(
-                        '${balance.toStringAsFixed(0)} CDF',
+                        Formatters.cdf(balance),
                         style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                       const SizedBox(width: 12),
@@ -277,10 +348,21 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             // Actions
             PopupMenuButton<String>(
               onSelected: (value) {
+                if (value == 'balance') _updateBalance(user);
                 if (value == 'toggle') _toggleBlock(user);
                 if (value == 'delete') _deleteUser(user);
               },
               itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'balance',
+                  child: Row(
+                    children: [
+                      Icon(Icons.account_balance_wallet, size: 18, color: AppConstants.primaryColor),
+                      const SizedBox(width: 8),
+                      Text('Définir le solde', style: TextStyle(color: AppConstants.primaryColor)),
+                    ],
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'toggle',
                   child: Row(

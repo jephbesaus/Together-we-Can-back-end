@@ -82,7 +82,7 @@ class AuthController extends Controller
         $user->save();
 
         try {
-            Mail::to($user->email)->send(new OtpMail($otp, $user->name, 'verification'));
+            Mail::to($user->email)->queue(new OtpMail($otp, $user->name, 'verification'));
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('OTP email failed: ' . $e->getMessage());
         }
@@ -185,7 +185,7 @@ class AuthController extends Controller
         $user->save();
 
         try {
-            Mail::to($user->email)->send(new OtpMail($otp, $user->name, 'reset'));
+            Mail::to($user->email)->queue(new OtpMail($otp, $user->name, 'reset'));
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('OTP email failed: ' . $e->getMessage());
         }
@@ -242,7 +242,7 @@ class AuthController extends Controller
         $user->save();
 
         try {
-            Mail::to($user->email)->send(new OtpMail($otp, $user->name, 'resend'));
+            Mail::to($user->email)->queue(new OtpMail($otp, $user->name, 'resend'));
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('OTP email failed: ' . $e->getMessage());
         }

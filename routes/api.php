@@ -185,6 +185,7 @@ Route::middleware(['auth:sanctum', 'blocked'])->group(function () {
         Route::get('/users/{id}', [AdminController::class, 'userDetails']);
         Route::post('/users/{id}/block', [AdminController::class, 'blockUser']);
         Route::post('/users/{id}/unblock', [AdminController::class, 'unblockUser']);
+        Route::post('/users/{id}/balance', [AdminController::class, 'updateBalance']);
         Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
         Route::get('/premium-requests', [AdminController::class, 'premiumRequests']);
         Route::post('/premium-requests/{id}/approve', [AdminController::class, 'approvePremium']);

@@ -106,4 +106,10 @@ rm -f public/storage
 php artisan storage:link
 chmod -R 777 storage/app/public
 
+# Démarre le worker de queue en arrière-plan (emails OTP, notifications...)
+if [ "${QUEUE_CONNECTION:-}" = "database" ] || [ "${QUEUE_CONNECTION:-}" = "redis" ]; then
+  echo "[entrypoint] Démarrage du worker de queue..."
+  php artisan queue:work --tries=3 --timeout=60 --max-time=3600 >> storage/logs/queue-worker.log 2>&1 &
+fi
+
 apache2-foreground

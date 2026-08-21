@@ -13,6 +13,7 @@ use App\Models\Notification;
 use App\Models\Transaction;
 use App\Services\FullSMMService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 
@@ -183,6 +184,77 @@ class AdminController extends Controller
         ]);
 
         return $this->successResponse(['message' => 'User unblocked successfully.']);
+    }
+
+    public function updateBalance(Request $request, $id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:0|max:999999999',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), 422);
+        }
+
+        $amount = round((float) $request->amount, 2);
+        $oldBalance = (float) $user->boost_balance;
+        $difference = round($amount - $oldBalance, 2);
+
+        DB::beginTransaction();
+        try {
+            $user->boost_balance = $amount;
+            $user->save();
+
+            if ($difference != 0) {
+                Transaction::create([
+                    'user_id' => $user->id,
+                    'type' => $difference > 0 ? Transaction::TYPE_DEPOSIT : Transaction::TYPE_WITHDRAWAL,
+                    'amount' => abs($difference),
+                    'reference' => 'ADM-ADJ-' . strtoupper(\Illuminate\Support\Str::random(12)),
+                    'payment_method' => 'admin_adjustment',
+                    'status' => Transaction::STATUS_COMPLETED,
+                    'description' => 'Solde défini à ' . number_format($amount, 0, ',', '.') . ' CDF par l\'administration',
+                    'metadata' => [
+                        'admin_id' => auth()->id(),
+                        'previous_balance' => $oldBalance,
+                        'new_balance' => $amount,
+                        'adjusted_at' => now()->toISOString(),
+                    ],
+                    'completed_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Admin balance update failed: ' . $e->getMessage());
+            return $this->errorResponse('Erreur lors de la mise à jour du solde.', 500);
+        }
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'balance_updated',
+            'message' => 'Votre solde a été mis à jour : ' . number_format($amount, 0, ',', '.') . ' CDF.',
+            'has_sound' => true,
+        ]);
+
+        Log::info('Admin updated user balance', [
+            'admin_id' => auth()->id(),
+            'user_id' => $user->id,
+            'old_balance' => $oldBalance,
+            'new_balance' => $amount,
+        ]);
+
+        return $this->successResponse([
+            'message' => 'Solde mis à jour : ' . number_format($amount, 0, ',', '.') . ' CDF.',
+            'user' => $user->fresh(),
+        ]);
     }
 
     public function deleteUser($id)
@@ -714,7 +786,7 @@ class AdminController extends Controller
 
         $transaction->update([
             'status' => 'failed',
-            'metadata' => array_merge($meta, [
+            'metadata' => array_merge($transaction->metadata ?? [], [
                 'rejected_reason' => $request->reason,
                 'rejected_at' => now()->toISOString(),
                 'rejected_by' => auth()->id(),

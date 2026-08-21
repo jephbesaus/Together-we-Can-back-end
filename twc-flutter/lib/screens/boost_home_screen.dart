@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../app/constants.dart';
 import '../core/services/api_service.dart';
+import '../core/utils/formatters.dart';
 import '../widgets/app_loader.dart';
 import 'boost/select_service_screen.dart';
 
@@ -143,7 +144,7 @@ class _BoostHomeScreenState extends State<BoostHomeScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${_balance.toStringAsFixed(0)} CDF',
+                          Formatters.cdf(_balance),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,

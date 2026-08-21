@@ -68,7 +68,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       if (response['success']) {
-        Get.toNamed(AppRoutes.verifyOtp, arguments: {'email': email});
+        // Le compte est créé et le token est déjà enregistré par AuthService :
+        // on entre directement dans l'app, sans bloquer sur la vérification OTP.
+        Get.offAllNamed(AppRoutes.discover);
+        Get.snackbar(
+          'Bienvenue',
+          'Votre compte a été créé. Un code de vérification vous a été envoyé par email.',
+          duration: const Duration(seconds: 4),
+        );
       } else {
         Get.snackbar(
           'Erreur',
