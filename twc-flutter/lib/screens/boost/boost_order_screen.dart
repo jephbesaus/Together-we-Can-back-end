@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/utils/formatters.dart';
 import '../boost_home_screen.dart';
 
 class BoostOrderScreen extends StatefulWidget {
@@ -26,8 +27,19 @@ class _BoostOrderScreenState extends State<BoostOrderScreen> {
   final TextEditingController _quantityController = TextEditingController();
   bool _isSubmitting = false;
 
-  int get _min => int.tryParse('${widget.service['min'] ?? 100}') ?? 100;
-  int get _max => int.tryParse('${widget.service['max'] ?? 10000}') ?? 10000;
+  // Limites demandées : quantité entre 100 et 300000. Les bornes du service
+  // s'appliquent si plus strictes.
+  int get _min {
+    final serviceMin = int.tryParse('${widget.service['min']}') ?? 100;
+    return serviceMin < 100 ? 100 : serviceMin;
+  }
+
+  int get _max {
+    final serviceMax = int.tryParse('${widget.service['max']}') ?? 300000;
+    return serviceMax > 300000 ? 300000 : serviceMax;
+  }
+
+  // Tarif converti en CDF par le backend (price_per_1000), sinon fallback.
   double get _pricePer1000 => double.tryParse('${widget.service['price_per_1000'] ?? widget.service['rate'] ?? 0}') ?? 0;
 
   double get _estimatedPrice {
@@ -113,7 +125,7 @@ class _BoostOrderScreenState extends State<BoostOrderScreen> {
                   const SizedBox(height: 4),
                   Text('Min: $_min • Max: $_max', style: TextStyle(color: Colors.grey[600])),
                   Text(
-                    'Prix: ${_pricePer1000.toStringAsFixed(0)} CDF / 1000',
+                    'Prix: ${Formatters.cdf(_pricePer1000)} / 1000',
                     style: const TextStyle(color: AppConstants.primaryColor, fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -136,6 +148,7 @@ class _BoostOrderScreenState extends State<BoostOrderScreen> {
               controller: _quantityController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
+                hintText: 'Entre $_min et $_max',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),

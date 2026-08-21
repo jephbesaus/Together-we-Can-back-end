@@ -56,6 +56,14 @@ class BoostController extends Controller
     {
         try {
             $services = $this->fullSMM->getPlatformServices($platform);
+            $usdToCdf = (float) config('fullsmm.usd_to_cdf', 3300);
+
+            // Convertit le tarif FullSMM (USD / 1000) en CDF / 1000.
+            $services = array_map(function ($service) use ($usdToCdf) {
+                $service['price_per_1000'] = round((float) ($service['rate'] ?? 0) * $usdToCdf, 2);
+                return $service;
+            }, is_array($services) ? $services : []);
+
             return $this->successResponse(['services' => array_values($services)]);
         } catch (\Exception $e) {
             return $this->successResponse(['services' => []]);
@@ -95,7 +103,8 @@ class BoostController extends Controller
         }
 
         $pricePerUnit = $service['rate'] ?? 0;
-        $totalPrice = ($pricePerUnit * $request->quantity) / 1000;
+        // Le tarif FullSMM est en USD / 1000 : on facture en CDF.
+        $totalPrice = round(($pricePerUnit * $request->quantity / 1000) * (float) config('fullsmm.usd_to_cdf', 3300), 2);
 
         $user = auth()->user();
         $user->refresh();

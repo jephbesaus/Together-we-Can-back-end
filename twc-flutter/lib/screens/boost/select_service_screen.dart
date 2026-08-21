@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/utils/formatters.dart';
 import 'boost_order_screen.dart';
 
 class SelectServiceScreen extends StatefulWidget {
@@ -103,7 +104,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                           children: [
                             Text('Min: ${service['min']} - Max: ${service['max']}'),
                             Text(
-                              'Prix: ${service['price_per_1000'] ?? 0} CDF / 1000',
+                              'Prix: ${Formatters.cdf(service['price_per_1000'] ?? 0)} / 1000',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: AppConstants.primaryColor,
