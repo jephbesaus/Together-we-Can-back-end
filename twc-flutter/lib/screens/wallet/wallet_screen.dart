@@ -20,6 +20,7 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
   double _savings = 0;
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
+  bool _fusionPayEnabled = false;
 
   @override
   void initState() {
@@ -53,6 +54,7 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
           // Le backend renvoie 'boost_balance' / 'savings_balance'
           _balance = double.tryParse('${balance['data']['boost_balance'] ?? 0}') ?? 0;
           _savings = double.tryParse('${balance['data']['savings_balance'] ?? 0}') ?? 0;
+          _fusionPayEnabled = balance['data']['fusionpay_enabled'] == true;
         });
       }
 
@@ -330,7 +332,9 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
     final lastNameController = TextEditingController();
     final firstNameController = TextEditingController();
     String selectedProvider = 'orange';
-    bool isManual = false;
+    // Sans FusionPay configuré côté serveur, le paiement rapide facturerait
+    // un prix fixe Chariow (~3300 CDF) : on force le mode manuel.
+    bool isManual = !_fusionPayEnabled;
 
     Get.dialog(
       StatefulBuilder(
@@ -340,8 +344,25 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (!_fusionPayEnabled) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Le paiement rapide au montant exact arrive bientôt. '
+                      'Utilisez le paiement manuel ci-dessous pour le moment.',
+                      style: TextStyle(fontSize: 12, color: Colors.orange),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Toggle rapide / manuel
-                Container(
+                if (_fusionPayEnabled)
+                  Container(
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(8),

@@ -35,6 +35,9 @@ class TransactionController extends Controller
         return $this->successResponse([
             'boost_balance' => $user->boost_balance,
             'savings_balance' => $user->savings_balance,
+            // Le paiement rapide (montant exact) n'est proposé que si
+            // FusionPay est configuré. Sinon Chariow facture un prix fixe.
+            'fusionpay_enabled' => filled(config('fusionpay.api_url')),
         ]);
     }
 
