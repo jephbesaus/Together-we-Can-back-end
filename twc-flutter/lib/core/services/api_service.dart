@@ -191,11 +191,12 @@ class ApiService {
             'error': 'Le fichier est trop volumineux (max 5 Mo).',
           };
         }
-        if (statusCode == 422) {
-          // Tente d'extraire le message de validation
-          if (data is Map<String, dynamic>) {
-            return data;
-          }
+        // 422 ET erreurs serveur : on remonte le message renvoyé par
+        // l'API s'il existe (ex: détail d'une erreur 500 côté backend).
+        if ((statusCode == 422 || (statusCode != null && statusCode >= 500)) &&
+            data is Map<String, dynamic> &&
+            (data['error'] != null || data['message'] != null)) {
+          return data;
         }
         return {
           'success': false,

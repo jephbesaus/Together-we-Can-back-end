@@ -34,9 +34,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         setState(() {
           _users = List<Map<String, dynamic>>.from(response['data']['users'] ?? []);
         });
+      } else {
+        final msg = ApiService.extractErrorMessage(
+          response['error'],
+          fallback: 'Erreur de chargement.',
+        );
+        Get.snackbar('Erreur serveur', msg, duration: const Duration(seconds: 10));
       }
     } catch (e) {
-      print('Error loading users: $e');
+      Get.snackbar('Erreur réseau', e.toString(), duration: const Duration(seconds: 10));
     }
     setState(() => _isLoading = false);
   }

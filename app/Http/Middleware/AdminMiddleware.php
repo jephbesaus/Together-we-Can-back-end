@@ -21,6 +21,13 @@ class AdminMiddleware
 
         $user = \App\Models\User::where('id', $user->id)->first();
 
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Compte introuvable.',
+            ], 401);
+        }
+
         if ($user->email !== config('admin.email')) {
             return response()->json([
                 'success' => false,

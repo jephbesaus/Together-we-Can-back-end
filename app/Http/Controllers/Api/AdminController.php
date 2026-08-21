@@ -107,27 +107,36 @@ class AdminController extends Controller
 
     public function users(Request $request)
     {
-        $query = User::query();
+        try {
+            $query = User::query();
 
-        if ($request->filled('q')) {
-            $query->where('name', 'LIKE', "%{$request->q}%")
-                ->orWhere('email', 'LIKE', "%{$request->q}%");
+            if ($request->filled('q')) {
+                $query->where('name', 'LIKE', "%{$request->q}%")
+                    ->orWhere('email', 'LIKE', "%{$request->q}%");
+            }
+
+            if ($request->filled('status')) {
+                if ($request->status === 'blocked') $query->where('is_blocked', true);
+                if ($request->status === 'premium') $query->where('is_premium', true);
+                if ($request->status === 'verified') $query->where('is_verified', true);
+            }
+
+            $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
+
+            return $this->successResponse([
+                'users' => $result['items'],
+                'has_more' => $result['has_more'],
+                'total' => $result['total'],
+                'page' => $result['page'],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Admin users list failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+            ]);
+
+            return $this->errorResponse($e->getMessage(), 500);
         }
-
-        if ($request->filled('status')) {
-            if ($request->status === 'blocked') $query->where('is_blocked', true);
-            if ($request->status === 'premium') $query->where('is_premium', true);
-            if ($request->status === 'verified') $query->where('is_verified', true);
-        }
-
-        $result = $this->paginateQuery($query->orderBy('created_at', 'desc'), $request);
-
-        return $this->successResponse([
-            'users' => $result['items'],
-            'has_more' => $result['has_more'],
-            'total' => $result['total'],
-            'page' => $result['page'],
-        ]);
     }
 
     public function userDetails($id)
