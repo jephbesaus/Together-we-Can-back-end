@@ -25,6 +25,16 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
   List<Map<String, dynamic>> _services = [];
   bool _isLoading = true;
 
+  /// Prix CDF / 1000 : valeur convertie par le backend si présente,
+  /// sinon conversion locale du tarif USD (× 3300).
+  String _priceLabel(Map<String, dynamic> service) {
+    final converted = double.tryParse('${service['price_per_1000'] ?? ''}');
+    final price = (converted != null && converted > 0)
+        ? converted
+        : (double.tryParse('${service['rate'] ?? 0}') ?? 0) * 3300;
+    return Formatters.cdf(price);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -104,7 +114,7 @@ class _SelectServiceScreenState extends State<SelectServiceScreen> {
                           children: [
                             Text('Min: ${service['min']} - Max: ${service['max']}'),
                             Text(
-                              'Prix: ${Formatters.cdf(service['price_per_1000'] ?? 0)} / 1000',
+                              'Prix: ${_priceLabel(service)} / 1000',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: AppConstants.primaryColor,

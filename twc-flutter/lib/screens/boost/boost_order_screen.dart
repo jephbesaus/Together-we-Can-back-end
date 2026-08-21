@@ -39,8 +39,14 @@ class _BoostOrderScreenState extends State<BoostOrderScreen> {
     return serviceMax > 300000 ? 300000 : serviceMax;
   }
 
-  // Tarif converti en CDF par le backend (price_per_1000), sinon fallback.
-  double get _pricePer1000 => double.tryParse('${widget.service['price_per_1000'] ?? widget.service['rate'] ?? 0}') ?? 0;
+  // Tarif en CDF / 1000 : utilise la valeur convertie par le backend
+  // (price_per_1000) ; sinon convertit localement le tarif USD (× 3300).
+  double get _pricePer1000 {
+    final converted = double.tryParse('${widget.service['price_per_1000'] ?? ''}');
+    if (converted != null && converted > 0) return converted;
+    final usdRate = double.tryParse('${widget.service['rate'] ?? 0}') ?? 0;
+    return usdRate * 3300;
+  }
 
   double get _estimatedPrice {
     final qty = int.tryParse(_quantityController.text) ?? 0;
