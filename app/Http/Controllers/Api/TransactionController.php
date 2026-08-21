@@ -92,14 +92,39 @@ class TransactionController extends Controller
 
     public function deposit(Request $request)
     {
+        $fusionPayEnabled = filled(config('fusionpay.api_url'));
+
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:500',
-            'email' => 'required|email',
+            'email' => $fusionPayEnabled ? 'nullable|email' : 'required|email',
+            'phone' => $fusionPayEnabled ? 'required|string|min:8' : 'nullable|string',
             'provider' => 'required|in:orange,mtn,vodacom,airtel,africell,mpesa',
         ]);
 
         if ($validator->fails()) {
             return $this->errorResponse($validator->errors(), 422);
+        }
+
+        if ($fusionPayEnabled) {
+            // Montant EXACT : le client paie précisément le montant saisi.
+            $phone = preg_replace('/\D/', '', (string) ($request->phone ?: auth()->user()->phone));
+
+            if (!$phone) {
+                return $this->errorResponse('Numéro de téléphone requis pour le paiement.', 422);
+            }
+
+            $result = $this->paymentService->depositFusionPay(
+                auth()->id(),
+                $request->amount,
+                $phone,
+                $request->provider
+            );
+
+            if (!$result['success']) {
+                return $this->errorResponse($result['message'], 400);
+            }
+
+            return $this->successResponse($result);
         }
 
         $result = $this->paymentService->depositChariow(
@@ -126,6 +151,16 @@ class TransactionController extends Controller
 
         if ($transaction->status !== 'pending') {
             return $this->successResponse(['status' => $transaction->status, 'transaction' => $transaction]);
+        }
+
+        if (str_starts_with((string) $transaction->payment_method, 'fusionpay_')) {
+            $result = $this->paymentService->checkFusionPayStatus($transaction);
+
+            if (!$result['success']) {
+                return $this->errorResponse($result['message'] ?? 'Vérification impossible pour le moment.', 400);
+            }
+
+            return $this->successResponse(['status' => $result['status'], 'transaction' => $result['transaction']]);
         }
 
         $result = $this->paymentService->checkChariowStatus($transactionId);

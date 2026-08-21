@@ -325,7 +325,7 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
 
   void _showDepositDialog() {
     final amountController = TextEditingController();
-    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
     final referenceController = TextEditingController();
     final lastNameController = TextEditingController();
     final firstNameController = TextEditingController();
@@ -409,13 +409,13 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
                 const SizedBox(height: 16),
 
                 if (!isManual) ...[
-                  // Mode rapide : email + opérateur
+                  // Mode rapide : numéro Mobile Money + opérateur
                   TextField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
-                      labelText: 'Email',
-                      hintText: 'Votre email pour le paiement',
+                      labelText: 'Numéro Mobile Money',
+                      hintText: 'Ex: 0812345678',
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -518,17 +518,17 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
                     Get.snackbar('Erreur', 'Erreur réseau.');
                   }
                 } else {
-                  // Mode rapide (Chariow redirect)
-                  final email = emailController.text.trim();
-                  if (email.isEmpty || !email.contains('@')) {
-                    Get.snackbar('Erreur', 'Email valide requis.');
+                  // Mode rapide (FusionPay, montant exact)
+                  final phone = phoneController.text.trim();
+                  if (phone.replaceAll(RegExp(r'\D'), '').length < 8) {
+                    Get.snackbar('Erreur', 'Numéro Mobile Money valide requis.');
                     return;
                   }
 
                   try {
                     final response = await _api.post('/transactions/deposit', data: {
                       'amount': amount,
-                      'email': email,
+                      'phone': phone,
                       'provider': selectedProvider,
                     });
 
@@ -536,7 +536,7 @@ class _WalletScreenState extends State<WalletScreen> with WidgetsBindingObserver
                       final paymentUrl = response['data']['payment_url'];
                       final txId = response['data']['transaction']?['id'];
                       if (paymentUrl != null) {
-                        Get.snackbar('Paiement', 'Redirection vers Chariow...');
+                        Get.snackbar('Paiement', 'Redirection vers le paiement...');
                         launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
                         if (txId != null) {
                           Future.delayed(const Duration(seconds: 10), () async {

@@ -124,6 +124,193 @@ class PaymentService
         return $this->depositChariow($userId, $amount, $email, 'orange');
     }
 
+    /**
+     * Dépôt via FusionPay (moneyfusion.net) : le montant est dynamique,
+     * le client paie EXACTEMENT le montant saisi en CDF.
+     */
+    public function depositFusionPay($userId, $amount, $phone, $provider = 'orange')
+    {
+        $user = User::find($userId);
+        if (!$user) throw new \Exception('Utilisateur non trouvé.');
+
+        $apiUrl = rtrim((string) config('fusionpay.api_url'), '/');
+        if (!$apiUrl) {
+            return ['success' => false, 'message' => 'Paiement mobile non configuré. Utilisez le paiement manuel.'];
+        }
+
+        $reference = 'FUP-DEP-' . Str::random(14);
+
+        $transaction = Transaction::create([
+            'user_id' => $userId,
+            'type' => 'deposit',
+            'amount' => $amount,
+            'reference' => $reference,
+            'payment_method' => 'fusionpay_' . $provider,
+            'status' => 'pending',
+            'description' => 'Dépôt via FusionPay (' . $provider . ')',
+            'metadata' => [
+                'provider' => $provider,
+                'phone' => $phone,
+                'amount' => $amount,
+                'initiated_at' => now()->toISOString(),
+            ],
+        ]);
+
+        try {
+            $payload = [
+                'totalPrice' => (float) $amount,
+                'article' => [
+                    ['Depot Together We Can ' . $reference => (float) $amount],
+                ],
+                'personal_Info' => [
+                    [
+                        'user_id' => (string) $userId,
+                        'transaction_id' => (string) $transaction->id,
+                        'reference' => $reference,
+                    ],
+                ],
+                'numeroSend' => preg_replace('/\D/', '', (string) $phone),
+                'nomclient' => $user->name ?: 'Client TWC',
+                'return_url' => url('/thank-you?reference=' . $reference . '&type=deposit&transaction_id=' . $transaction->id),
+                'webhook_url' => url('/api/webhooks/fusionpay'),
+            ];
+
+            $http = \Illuminate\Support\Facades\Http::timeout(20);
+            if (config('fusionpay.api_key')) {
+                $http = $http->withHeaders(['Authorization' => 'Bearer ' . config('fusionpay.api_key')]);
+            }
+            $response = $http->post($apiUrl, $payload);
+
+            Log::info('FusionPay checkout response', [
+                'transaction_id' => $transaction->id,
+                'status' => $response->status(),
+                'body' => mb_substr($response->body(), 0, 500),
+            ]);
+
+            if (!$response->successful()) {
+                throw new \Exception('HTTP ' . $response->status());
+            }
+
+            $data = $response->json();
+            $paymentUrl = $data['url'] ?? $data['data']['url'] ?? $data['link'] ?? null;
+            $token = $data['token'] ?? $data['tokenPay'] ?? $data['data']['token'] ?? null;
+
+            if (!$paymentUrl && !$token) {
+                throw new \Exception('Réponse FusionPay invalide (ni url ni token).');
+            }
+
+            $transaction->update([
+                'metadata' => array_merge($transaction->metadata ?? [], [
+                    'fusionpay_token' => $token,
+                    'payment_url' => $paymentUrl,
+                ]),
+            ]);
+
+            return [
+                'success' => true,
+                'transaction' => $transaction->fresh(),
+                'payment_url' => $paymentUrl,
+                'message' => 'Redirection vers le paiement...',
+            ];
+        } catch (\Exception $e) {
+            Log::warning('FusionPay checkout failed: ' . $e->getMessage());
+            $transaction->update([
+                'status' => 'failed',
+                'description' => 'Échec initiation FusionPay : ' . $e->getMessage(),
+            ]);
+            return [
+                'success' => false,
+                'message' => 'Impossible d\'initier le paiement. Réessayez ou utilisez le paiement manuel.',
+            ];
+        }
+    }
+
+    /**
+     * Vérifie le statut d'un dépôt FusionPay auprès de l'agrégateur
+     * et crédite le solde si le paiement est confirmé.
+     */
+    public function checkFusionPayStatus($transaction)
+    {
+        $token = $transaction->metadata['fusionpay_token'] ?? null;
+        if (!$token) {
+            return ['success' => false, 'message' => 'Token FusionPay manquant.'];
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(15)
+                ->get(rtrim((string) config('fusionpay.status_base_url'), '/') . '/' . $token);
+
+            if (!$response->successful()) {
+                return ['success' => false, 'message' => 'Vérification impossible pour le moment.'];
+            }
+
+            $data = $response->json();
+            $statut = strtolower($data['data']['statut'] ?? $data['statut'] ?? '');
+
+            if ($statut === 'paid') {
+                $this->completeDeposit($transaction, 'fusionpay_status_check');
+                return ['success' => true, 'status' => $transaction->fresh()->status, 'transaction' => $transaction->fresh()];
+            }
+
+            if (in_array($statut, ['failed', 'no paid', 'no_paid', 'canceled', 'cancelled'])) {
+                $transaction->update(['status' => 'failed']);
+                return ['success' => true, 'status' => 'failed', 'transaction' => $transaction->fresh()];
+            }
+
+            return ['success' => true, 'status' => $transaction->fresh()->status, 'transaction' => $transaction->fresh()];
+        } catch (\Exception $e) {
+            Log::warning('FusionPay status check failed: ' . $e->getMessage());
+            return ['success' => false, 'message' => 'Vérification impossible pour le moment.'];
+        }
+    }
+
+    /**
+     * Finalise un dépôt : marque la transaction comme complétée et
+     * crédite le solde de l'utilisateur. Idempotent.
+     */
+    public function completeDeposit(Transaction $transaction, $source = 'manual')
+    {
+        if ($transaction->type !== 'deposit' || $transaction->status !== 'pending') {
+            return false;
+        }
+
+        DB::beginTransaction();
+        try {
+            // Re-verrouille la transaction pour éviter un double crédit concurrent.
+            $fresh = Transaction::where('id', $transaction->id)->where('status', 'pending')->lockForUpdate()->first();
+            if (!$fresh) {
+                DB::rollBack();
+                return false;
+            }
+
+            $fresh->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'metadata' => array_merge($fresh->metadata ?? [], [
+                    'completed_via' => $source,
+                    'completed_at' => now()->toISOString(),
+                ]),
+            ]);
+
+            User::where('id', $fresh->user_id)->increment('boost_balance', $fresh->amount);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Deposit completion failed: ' . $e->getMessage());
+            return false;
+        }
+
+        Notification::create([
+            'user_id' => $fresh->user_id,
+            'type' => 'payment_approved',
+            'message' => 'Votre dépôt de ' . number_format($fresh->amount, 0, ',', '.') . ' CDF a été confirmé et crédité sur votre compte.',
+            'has_sound' => true,
+        ]);
+
+        return true;
+    }
+
     public function depositMtnMoney($userId, $amount, $email)
     {
         return $this->depositChariow($userId, $amount, $email, 'mtn');
