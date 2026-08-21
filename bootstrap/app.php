@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Render passe par un proxy : on lui fait confiance pour que url()
+        // génère bien des liens en https:// (liens de téléchargement,
+        // redirect_url Chariow, etc.)
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'blocked' => \App\Http\Middleware\CheckBlocked::class,
